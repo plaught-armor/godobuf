@@ -16,3 +16,5 @@ mono_crash.*.json
 .directory
 *~
 .vscode/
+packet.gd
+addons/protobuf/test/temp/*

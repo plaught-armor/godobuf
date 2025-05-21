@@ -59,34 +59,65 @@ class Helper:
 		var column: int
 		var length: int
 	
+	# static func str_pos(text: String, position: TokenPosition) -> StringPosition:
+	# 	var cur_str: int = 1
+	# 	var cur_col: int = 1
+	# 	var res_str: int = 0
+	# 	var res_col: int = 0
+	# 	var res_length: int = 0
+	# 	for i in range(text.length()):
+	# 		if text[i] == "\n":
+	# 			cur_str += 1
+	# 			cur_col = 0
+	# 		if position.begin == i:
+	# 			res_str = cur_str
+	# 			res_col = cur_col
+	# 			res_length = position.end - position.begin + 1
+	# 			break
+	# 		cur_col += 1
+	# 	return StringPosition.new(res_str, res_col, res_length)
+	
 	static func str_pos(text: String, position: TokenPosition) -> StringPosition:
 		var cur_str: int = 1
 		var cur_col: int = 1
 		var res_str: int = 0
 		var res_col: int = 0
-		var res_length: int = 0
-		for i in range(text.length()):
-			if text[i] == "\n":
+		var res_length: int = position.end - position.begin + 1 # Precompute
+		var text_length: int = text.length() # Cache length
+		
+		for i in range(text_length):
+			if text.unicode_at(i) == 0x000A: # "\n" as Unicode (faster than string comparison)
 				cur_str += 1
 				cur_col = 0
-			if position.begin == i:
+			elif position.begin == i: # Found the target position
 				res_str = cur_str
 				res_col = cur_col
-				res_length = position.end - position.begin + 1
-				break
+				break # Early exit
 			cur_col += 1
+		
 		return StringPosition.new(res_str, res_col, res_length)
+
+	# static func text_pos(tokens: Array, index: int) -> TokenPosition:
+	# 	var res_begin: int = 0
+	# 	var res_end: int = 0
+	# 	if index < tokens.size() && index >= 0:
+	# 		res_begin = tokens[index].position.begin
+	# 		res_end = tokens[index].position.end
+	# 	return TokenPosition.new(res_begin, res_end)
+
+	static func text_pos(tokens: Array[TokenPosition], index: int) -> TokenPosition:
+		# Early exit if index is out of bounds
+		if index < 0 or index >= tokens.size():
+			return TokenPosition.new(0, 0) # Default or error case
+		
+		# Directly access the token's position (avoid temp vars if possible)
+		var token: TokenPosition = tokens[index]
+		return TokenPosition.new(token.position.begin, token.position.end)
 	
-	static func text_pos(tokens: Array, index: int) -> TokenPosition:
-		var res_begin: int = 0
-		var res_end: int = 0
-		if index < tokens.size() && index >= 0:
-			res_begin = tokens[index].position.begin
-			res_end = tokens[index].position.end
-		return TokenPosition.new(res_begin, res_end)
-	
-	static func error_string(file_name, col, row, error_text):
-		return file_name + ":" + str(col) + ":" + str(row) + ": error: " + error_text
+	# static func error_string(file_name, col, row, error_text):
+	# 	return file_name + ":" + str(col) + ":" + str(row) + ": error: " + error_text
+	static func error_string(file_name: String, col: int, row: int, error_text: String) -> String:
+		return "%s:%d:%d: error: %s" % [file_name, col, row, error_text]
 
 class AnalyzeResult:
 	var classes: Array = []
@@ -907,7 +938,7 @@ class Analysis:
 		var description: int
 	
 	class TranslationResult:
-		var constructions: Array = []
+		var constructions: Array[Construction] = []
 		var done: bool = false
 		var error_description_id: int = -1
 		var error_description_text: String = ""
@@ -1116,7 +1147,7 @@ class Analysis:
 		var name: String
 		var parent_class_id: int
 		var rule: int
-		var field_indexes: Array = []
+		var field_indexes: Array[int] = []
 		var opened: bool
 		
 		func copy() -> ASTFieldGroup:
@@ -1136,10 +1167,10 @@ class Analysis:
 		var public: bool
 		var sha256: String
 	
-	var class_table: Array = []
-	var field_table: Array = []
-	var group_table: Array = []
-	var import_table: Array = []
+	var class_table: Array[Analysis.ASTClass]
+	var field_table: Array[Analysis.ASTField]
+	var group_table: Array[Analysis.ASTFieldGroup]
+	var import_table: Array[Analysis.ASTImport]
 	var proto_version: int = 0
 	
 	class DescriptionResult:
@@ -1148,7 +1179,7 @@ class Analysis:
 			error = e
 			description = d
 		var success: bool
-		var error
+		var error: int
 		var description: String
 	
 	static func get_text_from_token(string_token: TokenEntrance) -> String:
@@ -1203,8 +1234,8 @@ class Analysis:
 		
 	func desc_option(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		printerr("UNRELEASED desc_option: ", indexed_tokens.size(), ", nesting: ", settings.nesting)
-		var result: DescriptionResult = DescriptionResult.new()
-		return result
+		#var result: DescriptionResult = DescriptionResult.new()
+		return DescriptionResult.new()
 	
 	func desc_field(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		var result: DescriptionResult = DescriptionResult.new()
@@ -1414,11 +1445,11 @@ class Analysis:
 		return analyze_result
 
 class Semantic:
-	var class_table: Array
-	var field_table: Array
-	var group_table: Array
+	var class_table: Array[Analysis.ASTClass]
+	var field_table: Array[Analysis.ASTField]
+	var group_table: Array[Analysis.ASTFieldGroup]
 	var syntax: Analysis.TranslationResult
-	var tokens: Array
+	var tokens: Array[TokenPosition]
 	var document: Document
 	
 	func _init(analyze_result: AnalyzeResult):
@@ -1468,8 +1499,8 @@ class Semantic:
 		var table_index: int = -1
 		var subject: int
 	
-	func check_class_names() -> Array:
-		var result: Array = []
+	func check_class_names() -> Array[CheckResult]:
+		var result: Array[CheckResult] = []
 		for i in range(class_table.size()):
 			var the_class_name: String = class_table[i].parent_name + "." + class_table[i].name
 			for j in range(i + 1, class_table.size(), 1):
@@ -1480,8 +1511,8 @@ class Semantic:
 					break
 		return result
 	
-	func check_field_names() -> Array:
-		var result: Array = []
+	func check_field_names() -> Array[CheckResult]:
+		var result: Array[CheckResult] = []
 		for i in range(field_table.size()):
 			var the_class_name: String = class_table[field_table[i].parent_class_id].parent_name + "." + class_table[field_table[i].parent_class_id].name
 			for j in range(i + 1, field_table.size(), 1):
@@ -1509,21 +1540,21 @@ class Semantic:
 				return i
 		return -1
 	
-	func get_class_childs(class_index: int) -> Array:
-		var result: Array = []
+	func get_class_childs(class_index: int) -> Array[int]:
+		var result: Array[int] = []
 		for i in range(class_table.size()):
 			if class_table[i].parent_index == class_index:
 				result.append(i)
 		return result
 	
-	func find_in_childs(the_class_name: String, child_indexes: Array) -> int:
+	func find_in_childs(the_class_name: String, child_indexes: Array[int]) -> int:
 		for c in child_indexes:
 			if the_class_name == class_table[c].name:
 				return c
 		return -1
 	
-	func determine_field_types() -> Array:
-		var result: Array = []
+	func determine_field_types() -> Array[CheckResult]:
+		var result: Array[CheckResult] = []
 		for f in field_table:
 			if STRING_FIELD_TYPE.has(f.type_name):
 				f.field_type = STRING_FIELD_TYPE[f.type_name]
@@ -1533,7 +1564,7 @@ class Semantic:
 				else:
 					# Reset result from previous assignment, that can be incorrect because of merging of imports
 					f.type_class_id = -1
-					var splited_name: Array = f.type_name.split(".", false)
+					var splited_name: PackedStringArray = f.type_name.split(".", false)
 					var cur_class_index: int = f.parent_class_id
 					var exit: bool = false
 					while (true):
@@ -1541,7 +1572,7 @@ class Semantic:
 						if cur_class_index == -1:
 							break
 						for n in splited_name:
-							var childs_and_parent: Array = get_class_childs(cur_class_index)
+							var childs_and_parent: Array[int] = get_class_childs(cur_class_index)
 							var res_index: int = find_in_childs(n, childs_and_parent)
 							if res_index >= 0:
 								find = true
@@ -1574,47 +1605,145 @@ class Semantic:
 						result.append(CheckResult.new(field_table[i].construction_index, field_table[i].construction_index, i, CHECK_SUBJECT.FIELD_TYPE))
 		return result
 	
-	func check_constructions() -> Array:
-		var cl: Array = check_class_names()
-		var fl: Array = check_field_names()
-		var ft: Array = determine_field_types()
-		return cl + fl + ft
+	# func check_constructions() -> Array[CheckResult]:
+	# 	var cl: Array = check_class_names()
+	# 	var fl: Array = check_field_names()
+	# 	var ft: Array = determine_field_types()
+	# 	return cl + fl + ft
+
+	func check_constructions() -> Array[CheckResult]:
+		# Pre-allocate array with approximate capacity
+		var results: Array[CheckResult] = []
+		var result_count: int = 0
+
+		# Process checks with direct array filling
+		result_count = _append_check_results(results, result_count, check_class_names())
+		result_count = _append_check_results(results, result_count, check_field_names())
+		result_count = _append_check_results(results, result_count, determine_field_types())
 		
+		# Trim to actual size
+		results.resize(result_count)
+		return results
+
+	# Helper to avoid intermediate arrays
+	func _append_check_results(target: Array[CheckResult], start_idx: int, source: Array[CheckResult]) -> int:
+		for i in source.size():
+			target[start_idx + i] = source[i]
+		return start_idx + source.size()
+		
+	# func check() -> bool:
+	# 	var check_result: Array[CheckResult] = check_constructions()
+	# 	if check_result.size() == 0:
+	# 		return true
+	# 	else:
+	# 		for v in check_result:
+	# 			var main_tok: int = syntax.constructions[v.main_construction_index].begin_token_index
+	# 			var assoc_tok: int = syntax.constructions[v.associated_construction_index].begin_token_index
+	# 			var main_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, main_tok))
+	# 			var assoc_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, assoc_tok))
+	# 			var err_text: String
+	# 			if v.subject == CHECK_SUBJECT.CLASS_NAME:
+	# 				var class_type = "Undefined"
+	# 				if class_table[v.table_index].type == Analysis.CLASS_TYPE.ENUM:
+	# 					class_type = "Enum"
+	# 				elif class_table[v.table_index].type == Analysis.CLASS_TYPE.MESSAGE:
+	# 					class_type = "Message"
+	# 				elif class_table[v.table_index].type == Analysis.CLASS_TYPE.MAP:
+	# 					class_type = "Map"
+	# 				err_text = class_type + " name '" + class_table[v.table_index].name + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
+	# 			elif v.subject == CHECK_SUBJECT.FIELD_NAME:
+	# 				err_text = "Field name '" + field_table[v.table_index].name + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
+	# 			elif v.subject == CHECK_SUBJECT.FIELD_TAG_NUMBER:
+	# 				err_text = "Tag number '" + field_table[v.table_index].tag + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
+	# 			elif v.subject == CHECK_SUBJECT.FIELD_TYPE:
+	# 				err_text = "Type '" + field_table[v.table_index].type_name + "' of the '" + field_table[v.table_index].name + "' field undefined"
+	# 			else:
+	# 				err_text = "Undefined error"
+	# 			printerr(Helper.error_string(document.name, main_err_pos.str_num, main_err_pos.column, err_text))
+	# 	return false
+
 	func check() -> bool:
-		var check_result: Array = check_constructions()
-		if check_result.size() == 0:
+		var check_results: Array[CheckResult] = check_constructions()
+		if check_results.is_empty():
 			return true
-		else:
-			for v in check_result:
-				var main_tok: int = syntax.constructions[v.main_construction_index].begin_token_index
-				var assoc_tok: int = syntax.constructions[v.associated_construction_index].begin_token_index
-				var main_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, main_tok))
-				var assoc_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, assoc_tok))
-				var err_text: String
-				if v.subject == CHECK_SUBJECT.CLASS_NAME:
-					var class_type = "Undefined"
-					if class_table[v.table_index].type == Analysis.CLASS_TYPE.ENUM:
-						class_type = "Enum"
-					elif class_table[v.table_index].type == Analysis.CLASS_TYPE.MESSAGE:
-						class_type = "Message"
-					elif class_table[v.table_index].type == Analysis.CLASS_TYPE.MAP:
-						class_type = "Map"
-					err_text = class_type + " name '" + class_table[v.table_index].name + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
-				elif v.subject == CHECK_SUBJECT.FIELD_NAME:
-					err_text = "Field name '" + field_table[v.table_index].name + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
-				elif v.subject == CHECK_SUBJECT.FIELD_TAG_NUMBER:
-					err_text = "Tag number '" + field_table[v.table_index].tag + "' is already defined at:" + str(assoc_err_pos.str_num) + ":" + str(assoc_err_pos.column)
-				elif v.subject == CHECK_SUBJECT.FIELD_TYPE:
-					err_text = "Type '" + field_table[v.table_index].type_name + "' of the '" + field_table[v.table_index].name + "' field undefined"
-				else:
+
+		# Cache frequently accessed data
+		var constr: Array[Analysis.Construction] = syntax.constructions
+		var doc_text: String = document.text
+		var tokens_ref: Array[TokenPosition] = tokens # Avoid repeated dictionary access
+
+		for result in check_results:
+			# Get token positions once
+			var main_tok: int = constr[result.main_construction_index].begin_token_index
+			var assoc_tok: int = constr[result.associated_construction_index].begin_token_index
+
+			# Calculate positions
+			var main_pos: TokenPosition = Helper.text_pos(tokens_ref, main_tok)
+			var assoc_pos: TokenPosition = Helper.text_pos(tokens_ref, assoc_tok)
+			var main_err_pos: Helper.StringPosition = Helper.str_pos(doc_text, main_pos)
+			var assoc_err_pos: Helper.StringPosition = Helper.str_pos(doc_text, assoc_pos)
+
+			# Build error message
+			var err_text: String
+			match result.subject:
+				CHECK_SUBJECT.CLASS_NAME:
+					var class_info: Analysis.ASTClass = class_table[result.table_index]
+					var class_type: String = _get_class_type_name(class_info.type)
+					err_text = "%s name '%s' is already defined at:%d:%d" % [
+						class_type,
+						class_info.name,
+						assoc_err_pos.str_num,
+						assoc_err_pos.column
+					]
+
+				CHECK_SUBJECT.FIELD_NAME:
+					var field: Analysis.ASTField = field_table[result.table_index]
+					err_text = "Field name '%s' is already defined at:%d:%d" % [
+						field.name,
+						assoc_err_pos.str_num,
+						assoc_err_pos.column
+					]
+
+				CHECK_SUBJECT.FIELD_TAG_NUMBER:
+					var field: Analysis.ASTField = field_table[result.table_index]
+					err_text = "Tag number '%s' is already defined at:%d:%d" % [
+						str(field.tag),
+						assoc_err_pos.str_num,
+						assoc_err_pos.column
+					]
+
+				CHECK_SUBJECT.FIELD_TYPE:
+					var field: Analysis.ASTField = field_table[result.table_index]
+					err_text = "Type '%s' of the '%s' field undefined" % [
+						field.type_name,
+						field.name
+					]
+
+				_:
 					err_text = "Undefined error"
-				printerr(Helper.error_string(document.name, main_err_pos.str_num, main_err_pos.column, err_text))
+
+			# Print error
+			printerr(Helper.error_string(
+				document.name,
+				main_err_pos.str_num,
+				main_err_pos.column,
+				err_text
+			))
+
 		return false
 
+	# Helper function to avoid repeated string creation
+	func _get_class_type_name(type: int) -> String:
+		match type:
+			Analysis.CLASS_TYPE.ENUM: return "Enum"
+			Analysis.CLASS_TYPE.MESSAGE: return "Message"
+			Analysis.CLASS_TYPE.MAP: return "Map"
+			_: return "Undefined"
+
 class Translator:
-	var class_table: Array
-	var field_table: Array
-	var group_table: Array
+	var class_table: Array[Analysis.ASTClass]
+	var field_table: Array[Analysis.ASTField]
+	var group_table: Array[Analysis.ASTFieldGroup]
 	var proto_version: int
 	
 	func _init(analyzer_result: AnalyzeResult):
@@ -1623,11 +1752,13 @@ class Translator:
 		group_table = analyzer_result.groups
 		proto_version = analyzer_result.version
 	
+	# func tabulate(text: String, nesting: int) -> String:
+	# 	var tab: String = ""
+	# 	for i in range(nesting):
+	# 		tab += "\t"
+	# 	return tab + text
 	func tabulate(text: String, nesting: int) -> String:
-		var tab: String = ""
-		for i in range(nesting):
-			tab += "\t"
-		return tab + text
+		return "\t".repeat(nesting) + text
 	
 	func default_dict_text() -> String:
 		match proto_version:
@@ -1757,7 +1888,7 @@ class Translator:
 				return ""
 
 	func generate_field_constructor(field_index: int, nesting: int) -> String:
-		var builder := PackedStringArray()
+		var builder: PackedStringArray = PackedStringArray()
 		var f = field_table[field_index]
 		var field_name: String = "__" + f.name
 		var default_var_name: String = field_name + "_default"
@@ -1769,7 +1900,7 @@ class Translator:
 			builder.append(tabulate("var %s: Array%s = []\n" % [default_var_name, array_type], nesting))
 		
 		# Build PBField constructor
-		var pbfield_args := PackedStringArray([
+		var pbfield_args: PackedStringArray = PackedStringArray([
 			"\"%s\"" % f.name,
 			generate_field_type(f),
 			generate_field_rule(f),
@@ -1796,7 +1927,7 @@ class Translator:
 		# Set function reference based on field type
 		match f.field_type:
 			Analysis.FIELD_TYPE.MESSAGE:
-				var func_name := "add_%s" % f.name if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else "new_%s" % f.name
+				var func_name: String = "add_%s" % f.name if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else "new_%s" % f.name
 				builder.append(tabulate("service.func_ref = Callable(self, \"%s\")\n" % func_name, nesting))
 			Analysis.FIELD_TYPE.MAP:
 				builder.append(tabulate("service.func_ref = Callable(self, \"add_empty_%s\")\n" % f.name, nesting))
@@ -2292,19 +2423,18 @@ class Translator:
 				# Class declaration and init
 				builder.append(tabulate("class %s:\n" % cls.name, nesting))
 				builder.append(tabulate("func _init():\n", nesting + 1))
-				builder.append(tabulate("var service\n\n", nesting + 2))
+				builder.append(tabulate("var service: PBServiceField\n\n", nesting + 2))
 				
 				# Process fields
-				var field_builder := PackedStringArray()
+				var field_builder: PackedStringArray = PackedStringArray()
 				for i in field_table.size():
 					if field_table[i].parent_class_id == class_index:
 						builder.append(generate_field_constructor(i, nesting + 2))
 						builder.append("\n")
 						field_builder.append(generate_field(i, nesting - 1))
-						field_builder.append("\n")
 				
 				# Add data dictionary
-				builder.append(tabulate("var data = {}\n", nesting + 1))
+				builder.append(tabulate("var data: Dictionary[int, PBServiceField] = {}\n\n", nesting + 1))
 				builder.append_array(field_builder)
 				
 				# Process nested classes
@@ -2321,19 +2451,19 @@ class Translator:
 				
 				# Process enum values
 				var expected_prefix: String = cls.name.to_snake_case().to_upper() + "_"
-				var all_have_prefix := true
-				var enum_values := PackedStringArray()
+				var all_have_prefix: bool = true
+				var enum_values: PackedStringArray = PackedStringArray()
 				
 				for en in cls.values.size():
 					var value = cls.values[en]
 					all_have_prefix = all_have_prefix and value.name.begins_with(expected_prefix) and value.name != expected_prefix
 				
 				for en in cls.values.size():
-					var value_name = cls.values[en].name
+					var value_name: StringName = cls.values[en].name
 					if all_have_prefix:
 						value_name = value_name.substr(expected_prefix.length())
 					
-					var enum_line := "%s = %s" % [value_name, cls.values[en].value]
+					var enum_line: String = "%s = %s" % [value_name, cls.values[en].value]
 					if en < cls.values.size() - 1:
 						enum_line += ","
 					enum_values.append(tabulate(enum_line + "\n", nesting + 1))
