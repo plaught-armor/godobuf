@@ -31,42 +31,40 @@
 
 extends Node
 
-const PROTO_VERSION_CONST : String = "const PROTO_VERSION = "
-const PROTO_VERSION_DEFAULT : String = PROTO_VERSION_CONST + "0"
+const PROTO_VERSION_CONST: String = "const PROTO_VERSION = "
+const PROTO_VERSION_DEFAULT: String = PROTO_VERSION_CONST + "0"
 
 class Document:
-	
-	func _init(doc_name : String, doc_text : String):
+	func _init(doc_name: String, doc_text: String):
 		name = doc_name
 		text = doc_text
 	
-	var name : String
-	var text : String
+	var name: String
+	var text: String
 
 class TokenPosition:
-	func _init(b : int, e : int):
+	func _init(b: int, e: int):
 		begin = b
 		end = e
-	var begin : int = 0
-	var end : int = 0
+	var begin: int = 0
+	var end: int = 0
 
 class Helper:
-
 	class StringPosition:
-		func _init(s : int, c : int, l : int):
+		func _init(s: int, c: int, l: int):
 			str_num = s
 			column = c
 			length = l
-		var str_num : int
-		var column : int
-		var length : int
+		var str_num: int
+		var column: int
+		var length: int
 	
-	static func str_pos(text : String, position : TokenPosition) -> StringPosition:
-		var cur_str : int = 1
-		var cur_col : int = 1
-		var res_str : int = 0
-		var res_col : int = 0
-		var res_length : int = 0
+	static func str_pos(text: String, position: TokenPosition) -> StringPosition:
+		var cur_str: int = 1
+		var cur_col: int = 1
+		var res_str: int = 0
+		var res_col: int = 0
+		var res_length: int = 0
 		for i in range(text.length()):
 			if text[i] == "\n":
 				cur_str += 1
@@ -79,9 +77,9 @@ class Helper:
 			cur_col += 1
 		return StringPosition.new(res_str, res_col, res_length)
 	
-	static func text_pos(tokens : Array, index : int) -> TokenPosition:
-		var res_begin : int = 0
-		var res_end : int = 0
+	static func text_pos(tokens: Array, index: int) -> TokenPosition:
+		var res_begin: int = 0
+		var res_end: int = 0
 		if index < tokens.size() && index >= 0:
 			res_begin = tokens[index].position.begin
 			res_end = tokens[index].position.end
@@ -91,18 +89,18 @@ class Helper:
 		return file_name + ":" + str(col) + ":" + str(row) + ": error: " + error_text
 
 class AnalyzeResult:
-	var classes : Array = []
-	var fields : Array = []
-	var groups : Array = []
-	var version : int = 0
-	var state : bool = false
-	var tokens : Array = []
-	var syntax : Analysis.TranslationResult
-	var imports : Array = []
-	var doc : Document
+	var classes: Array = []
+	var fields: Array = []
+	var groups: Array = []
+	var version: int = 0
+	var state: bool = false
+	var tokens: Array = []
+	var syntax: Analysis.TranslationResult
+	var imports: Array = []
+	var doc: Document
 	
 	func soft_copy() -> AnalyzeResult:
-		var res : AnalyzeResult = AnalyzeResult.new()
+		var res: AnalyzeResult = AnalyzeResult.new()
 		res.classes = classes
 		res.fields = fields
 		res.groups = groups
@@ -115,13 +113,12 @@ class AnalyzeResult:
 		return res
 
 class Analysis:
-	
-	func _init(path : String, doc : Document):
+	func _init(path: String, doc: Document):
 		path_dir = path
 		document = doc
 	
-	var document : Document
-	var path_dir : String
+	var document: Document
+	var path_dir: String
 	
 	const LEX = {
 		LETTER = "[A-Za-z]",
@@ -145,64 +142,64 @@ class Analysis:
 		QUOTE_DOUBLE = "\"",
 	}
 	
-	const TOKEN_IDENT : String = "(" + LEX.LETTER + "+" + "(" + LEX.LETTER + "|" + LEX.DIGIT_DEC + "|" + "_)*)"
-	const TOKEN_FULL_IDENT : String = TOKEN_IDENT + "{0,1}(\\." + TOKEN_IDENT + ")+"
-	const TOKEN_BRACKET_ROUND_LEFT : String = "(" + LEX.BRACKET_ROUND_LEFT + ")"
-	const TOKEN_BRACKET_ROUND_RIGHT : String = "(" + LEX.BRACKET_ROUND_RIGHT + ")"
-	const TOKEN_BRACKET_CURLY_LEFT : String = "(" + LEX.BRACKET_CURLY_LEFT + ")"
-	const TOKEN_BRACKET_CURLY_RIGHT : String = "(" + LEX.BRACKET_CURLY_RIGHT + ")"
-	const TOKEN_BRACKET_SQUARE_LEFT : String = "(" + LEX.BRACKET_SQUARE_LEFT + ")"
-	const TOKEN_BRACKET_SQUARE_RIGHT : String = "(" + LEX.BRACKET_SQUARE_RIGHT + ")"
-	const TOKEN_BRACKET_ANGLE_LEFT : String = "(" + LEX.BRACKET_ANGLE_LEFT + ")"
-	const TOKEN_BRACKET_ANGLE_RIGHT : String = "(" + LEX.BRACKET_ANGLE_RIGHT + ")"
-	const TOKEN_SEMICOLON : String = "(" + LEX.SEMICOLON + ")"
-	const TOKEN_EUQAL : String = "(" + LEX.EQUAL + ")"
-	const TOKEN_SIGN : String = "(" + LEX.SIGN + ")"
-	const TOKEN_LITERAL_DEC : String = "(([1-9])" + LEX.DIGIT_DEC +"*)"
-	const TOKEN_LITERAL_OCT : String = "(0" + LEX.DIGIT_OCT +"*)"
-	const TOKEN_LITERAL_HEX : String = "(0(x|X)(" + LEX.DIGIT_HEX +")+)"
-	const TOKEN_LITERAL_INT : String = "((\\+|\\-){0,1}" + TOKEN_LITERAL_DEC + "|" + TOKEN_LITERAL_OCT + "|" + TOKEN_LITERAL_HEX + ")"
-	const TOKEN_LITERAL_FLOAT_DEC : String = "(" + LEX.DIGIT_DEC + "+)"
-	const TOKEN_LITERAL_FLOAT_EXP : String = "((e|E)(\\+|\\-)?" + TOKEN_LITERAL_FLOAT_DEC + "+)"
-	const TOKEN_LITERAL_FLOAT : String = "((\\+|\\-){0,1}(" + TOKEN_LITERAL_FLOAT_DEC + "\\." + TOKEN_LITERAL_FLOAT_DEC + "?" + TOKEN_LITERAL_FLOAT_EXP + "?)|(" + TOKEN_LITERAL_FLOAT_DEC + TOKEN_LITERAL_FLOAT_EXP + ")|(\\." + TOKEN_LITERAL_FLOAT_DEC + TOKEN_LITERAL_FLOAT_EXP + "?))"
-	const TOKEN_SPACE : String = "(" + LEX.SPACE + ")+"
-	const TOKEN_COMMA : String = "(" + LEX.COMMA + ")"
-	const TOKEN_CHAR_ESC : String = "[\\\\(a|b|f|n|r|t|v|\\\\|'|\")]"
-	const TOKEN_OCT_ESC : String = "[\\\\" + LEX.DIGIT_OCT + "{3}]"
-	const TOKEN_HEX_ESC : String = "[\\\\(x|X)" + LEX.DIGIT_HEX + "{2}]"
-	const TOKEN_CHAR_EXCLUDE : String = "[^\\0\\n\\\\]"
-	const TOKEN_CHAR_VALUE : String = "(" + TOKEN_HEX_ESC + "|" + TOKEN_OCT_ESC + "|" + TOKEN_CHAR_ESC + "|" + TOKEN_CHAR_EXCLUDE + ")"
-	const TOKEN_STRING_SINGLE : String = "('" + TOKEN_CHAR_VALUE + "*?')"
-	const TOKEN_STRING_DOUBLE : String = "(\"" + TOKEN_CHAR_VALUE + "*?\")"
-	const TOKEN_COMMENT_SINGLE : String = "((//[^\\n\\r]*[^\\s])|//)"
-	const TOKEN_COMMENT_MULTI : String = "/\\*(.|[\\n\\r])*?\\*/"
+	const TOKEN_IDENT: String = "(" + LEX.LETTER + "+" + "(" + LEX.LETTER + "|" + LEX.DIGIT_DEC + "|" + "_)*)"
+	const TOKEN_FULL_IDENT: String = TOKEN_IDENT + "{0,1}(\\." + TOKEN_IDENT + ")+"
+	const TOKEN_BRACKET_ROUND_LEFT: String = "(" + LEX.BRACKET_ROUND_LEFT + ")"
+	const TOKEN_BRACKET_ROUND_RIGHT: String = "(" + LEX.BRACKET_ROUND_RIGHT + ")"
+	const TOKEN_BRACKET_CURLY_LEFT: String = "(" + LEX.BRACKET_CURLY_LEFT + ")"
+	const TOKEN_BRACKET_CURLY_RIGHT: String = "(" + LEX.BRACKET_CURLY_RIGHT + ")"
+	const TOKEN_BRACKET_SQUARE_LEFT: String = "(" + LEX.BRACKET_SQUARE_LEFT + ")"
+	const TOKEN_BRACKET_SQUARE_RIGHT: String = "(" + LEX.BRACKET_SQUARE_RIGHT + ")"
+	const TOKEN_BRACKET_ANGLE_LEFT: String = "(" + LEX.BRACKET_ANGLE_LEFT + ")"
+	const TOKEN_BRACKET_ANGLE_RIGHT: String = "(" + LEX.BRACKET_ANGLE_RIGHT + ")"
+	const TOKEN_SEMICOLON: String = "(" + LEX.SEMICOLON + ")"
+	const TOKEN_EUQAL: String = "(" + LEX.EQUAL + ")"
+	const TOKEN_SIGN: String = "(" + LEX.SIGN + ")"
+	const TOKEN_LITERAL_DEC: String = "(([1-9])" + LEX.DIGIT_DEC + "*)"
+	const TOKEN_LITERAL_OCT: String = "(0" + LEX.DIGIT_OCT + "*)"
+	const TOKEN_LITERAL_HEX: String = "(0(x|X)(" + LEX.DIGIT_HEX + ")+)"
+	const TOKEN_LITERAL_INT: String = "((\\+|\\-){0,1}" + TOKEN_LITERAL_DEC + "|" + TOKEN_LITERAL_OCT + "|" + TOKEN_LITERAL_HEX + ")"
+	const TOKEN_LITERAL_FLOAT_DEC: String = "(" + LEX.DIGIT_DEC + "+)"
+	const TOKEN_LITERAL_FLOAT_EXP: String = "((e|E)(\\+|\\-)?" + TOKEN_LITERAL_FLOAT_DEC + "+)"
+	const TOKEN_LITERAL_FLOAT: String = "((\\+|\\-){0,1}(" + TOKEN_LITERAL_FLOAT_DEC + "\\." + TOKEN_LITERAL_FLOAT_DEC + "?" + TOKEN_LITERAL_FLOAT_EXP + "?)|(" + TOKEN_LITERAL_FLOAT_DEC + TOKEN_LITERAL_FLOAT_EXP + ")|(\\." + TOKEN_LITERAL_FLOAT_DEC + TOKEN_LITERAL_FLOAT_EXP + "?))"
+	const TOKEN_SPACE: String = "(" + LEX.SPACE + ")+"
+	const TOKEN_COMMA: String = "(" + LEX.COMMA + ")"
+	const TOKEN_CHAR_ESC: String = "[\\\\(a|b|f|n|r|t|v|\\\\|'|\")]"
+	const TOKEN_OCT_ESC: String = "[\\\\" + LEX.DIGIT_OCT + "{3}]"
+	const TOKEN_HEX_ESC: String = "[\\\\(x|X)" + LEX.DIGIT_HEX + "{2}]"
+	const TOKEN_CHAR_EXCLUDE: String = "[^\\0\\n\\\\]"
+	const TOKEN_CHAR_VALUE: String = "(" + TOKEN_HEX_ESC + "|" + TOKEN_OCT_ESC + "|" + TOKEN_CHAR_ESC + "|" + TOKEN_CHAR_EXCLUDE + ")"
+	const TOKEN_STRING_SINGLE: String = "('" + TOKEN_CHAR_VALUE + "*?')"
+	const TOKEN_STRING_DOUBLE: String = "(\"" + TOKEN_CHAR_VALUE + "*?\")"
+	const TOKEN_COMMENT_SINGLE: String = "((//[^\\n\\r]*[^\\s])|//)"
+	const TOKEN_COMMENT_MULTI: String = "/\\*(.|[\\n\\r])*?\\*/"
 	
-	const TOKEN_SECOND_MESSAGE : String = "^message$"
-	const TOKEN_SECOND_SIMPLE_DATA_TYPE : String = "^(double|float|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|bool|string|bytes)$"
-	const TOKEN_SECOND_ENUM : String = "^enum$"
-	const TOKEN_SECOND_MAP : String = "^map$"
-	const TOKEN_SECOND_ONEOF : String = "^oneof$"
-	const TOKEN_SECOND_LITERAL_BOOL : String = "^(true|false)$"
-	const TOKEN_SECOND_SYNTAX : String = "^syntax$"
-	const TOKEN_SECOND_IMPORT : String = "^import$"
-	const TOKEN_SECOND_PACKAGE : String = "^package$"
-	const TOKEN_SECOND_OPTION : String = "^option$"
-	const TOKEN_SECOND_SERVICE : String = "^service$"
-	const TOKEN_SECOND_RESERVED : String = "^reserved$"
-	const TOKEN_SECOND_IMPORT_QUALIFICATION : String = "^(weak|public)$"
-	const TOKEN_SECOND_FIELD_QUALIFICATION : String = "^(repeated|required|optional)$"
-	const TOKEN_SECOND_ENUM_OPTION : String = "^allow_alias$"
-	const TOKEN_SECOND_QUALIFICATION : String = "^(custom_option|extensions)$"
-	const TOKEN_SECOND_FIELD_OPTION : String = "^packed$"
+	const TOKEN_SECOND_MESSAGE: String = "^message$"
+	const TOKEN_SECOND_SIMPLE_DATA_TYPE: String = "^(double|float|int32|int64|uint32|uint64|sint32|sint64|fixed32|fixed64|sfixed32|sfixed64|bool|string|bytes)$"
+	const TOKEN_SECOND_ENUM: String = "^enum$"
+	const TOKEN_SECOND_MAP: String = "^map$"
+	const TOKEN_SECOND_ONEOF: String = "^oneof$"
+	const TOKEN_SECOND_LITERAL_BOOL: String = "^(true|false)$"
+	const TOKEN_SECOND_SYNTAX: String = "^syntax$"
+	const TOKEN_SECOND_IMPORT: String = "^import$"
+	const TOKEN_SECOND_PACKAGE: String = "^package$"
+	const TOKEN_SECOND_OPTION: String = "^option$"
+	const TOKEN_SECOND_SERVICE: String = "^service$"
+	const TOKEN_SECOND_RESERVED: String = "^reserved$"
+	const TOKEN_SECOND_IMPORT_QUALIFICATION: String = "^(weak|public)$"
+	const TOKEN_SECOND_FIELD_QUALIFICATION: String = "^(repeated|required|optional)$"
+	const TOKEN_SECOND_ENUM_OPTION: String = "^allow_alias$"
+	const TOKEN_SECOND_QUALIFICATION: String = "^(custom_option|extensions)$"
+	const TOKEN_SECOND_FIELD_OPTION: String = "^packed$"
 	
 	class TokenEntrance:
-		func _init(i : int, b : int, e : int, t : String):
+		func _init(i: int, b: int, e: int, t: String):
 			position = TokenPosition.new(b, e)
 			text = t
 			id = i
-		var position : TokenPosition
-		var text : String
-		var id : int
+		var position: TokenPosition
+		var text: String
+		var id: int
 	
 	enum RANGE_STATE {
 		INCLUDE = 0,
@@ -214,33 +211,33 @@ class Analysis:
 	}
 	
 	class TokenRange:
-		func _init(b : int, e : int, s):
+		func _init(b: int, e: int, s):
 			position = TokenPosition.new(b, e)
 			state = s
-		var position : TokenPosition
+		var position: TokenPosition
 		var state
 	
 	class Token:
-		var _regex : RegEx
-		var _entrance : TokenEntrance = null
-		var _entrances : Array = []
-		var _entrance_index : int = 0
-		var _id : int
-		var _ignore : bool
-		var _clarification : String
+		var _regex: RegEx
+		var _entrance: TokenEntrance = null
+		var _entrances: Array = []
+		var _entrance_index: int = 0
+		var _id: int
+		var _ignore: bool
+		var _clarification: String
 		
-		func _init(id : int, clarification : String, regex_str : String, ignore = false):
+		func _init(id: int, clarification: String, regex_str: String, ignore = false):
 			_id = id
 			_regex = RegEx.new()
 			_regex.compile(regex_str)
 			_clarification = clarification
 			_ignore = ignore
 			
-		func find(text : String, start : int) -> TokenEntrance:
+		func find(text: String, start: int) -> TokenEntrance:
 			_entrance = null
 			if !_regex.is_valid():
 				return null
-			var match_result : RegExMatch = _regex.search(text, start)
+			var match_result: RegExMatch = _regex.search(text, start)
 			if match_result != null:
 				var capture
 				capture = match_result.get_string(0)
@@ -249,8 +246,8 @@ class Analysis:
 				_entrance = TokenEntrance.new(_id, match_result.get_start(0), capture.length() - 1 + match_result.get_start(0), capture)
 			return _entrance
 			
-		func find_all(text : String) -> Array:
-			var pos : int = 0
+		func find_all(text: String) -> Array:
+			var pos: int = 0
 			clear()
 			while find(text, pos) != null:
 				_entrances.append(_entrance)
@@ -275,7 +272,7 @@ class Analysis:
 		func get_index() -> int:
 			return _entrance_index
 			
-		func set_index(index : int) -> void:
+		func set_index(index: int) -> void:
 			if index < _entrances.size():
 				_entrance_index = index
 			else:
@@ -288,8 +285,8 @@ class Analysis:
 			return _clarification
 	
 	class TokenResult:
-		var tokens : Array = []
-		var errors : Array = []
+		var tokens: Array = []
+		var errors: Array = []
 	
 	enum TOKEN_ID {
 		UNDEFINED = -1,
@@ -379,7 +376,7 @@ class Analysis:
 		TOKEN_ID.STRING: Token.new(TOKEN_ID.STRING, "String", "", true)
 	}
 	
-	static func check_range(main : TokenEntrance, current : TokenEntrance) -> TokenRange:
+	static func check_range(main: TokenEntrance, current: TokenEntrance) -> TokenRange:
 		if main.position.begin > current.position.begin:
 			if main.position.end > current.position.end:
 				if main.position.begin >= current.position.end:
@@ -408,7 +405,7 @@ class Analysis:
 		for k in TOKEN:
 			if !TOKEN[k].is_ignore():
 				TOKEN[k].find_all(document.text)
-		var second_tokens : Array = []
+		var second_tokens: Array = []
 		second_tokens.append(TOKEN[TOKEN_ID.MESSAGE])
 		second_tokens.append(TOKEN[TOKEN_ID.SIMPLE_DATA_TYPE])
 		second_tokens.append(TOKEN[TOKEN_ID.ENUM])
@@ -427,11 +424,11 @@ class Analysis:
 		second_tokens.append(TOKEN[TOKEN_ID.QUALIFICATION])
 		second_tokens.append(TOKEN[TOKEN_ID.FIELD_OPTION])
 		
-		var ident_token : Token = TOKEN[TOKEN_ID.IDENT]
+		var ident_token: Token = TOKEN[TOKEN_ID.IDENT]
 		for sec_token in second_tokens:
-			var remove_indexes : Array = []
+			var remove_indexes: Array = []
 			for i in range(ident_token.get_entrances().size()):
-				var entrance : TokenEntrance = sec_token.find(ident_token.get_entrances()[i].text, 0)
+				var entrance: TokenEntrance = sec_token.find(ident_token.get_entrances()[i].text, 0)
 				if entrance != null:
 					entrance.position.begin = ident_token.get_entrances()[i].position.begin
 					entrance.position.end = ident_token.get_entrances()[i].position.end
@@ -447,15 +444,15 @@ class Analysis:
 			v.id = TOKEN_ID.STRING
 			TOKEN[TOKEN_ID.STRING].add_entrance(v)
 		TOKEN[TOKEN_ID.STRING_SINGLE].clear()
-		var main_token : TokenEntrance
-		var cur_token : TokenEntrance
-		var main_index : int = -1
-		var token_index_flag : bool = false
-		var result : TokenResult = TokenResult.new()
-		var check : TokenRange
-		var end : bool = false
-		var all : bool = false
-		var repeat : bool = false
+		var main_token: TokenEntrance
+		var cur_token: TokenEntrance
+		var main_index: int = -1
+		var token_index_flag: bool = false
+		var result: TokenResult = TokenResult.new()
+		var check: TokenRange
+		var end: bool = false
+		var all: bool = false
+		var repeat: bool = false
 		while true:
 			all = true
 			for k in TOKEN:
@@ -510,9 +507,9 @@ class Analysis:
 				break
 		return result
 
-	static func check_tokens_integrity(tokens : Array, end : int) -> Array:
-		var cur_index : int = 0
-		var result : Array = []
+	static func check_tokens_integrity(tokens: Array, end: int) -> Array:
+		var cur_index: int = 0
+		var result: Array = []
 		for v in tokens:
 			if v.position.begin > cur_index:
 				result.append(TokenPosition.new(cur_index, v.position.begin))
@@ -521,12 +518,12 @@ class Analysis:
 			result.append(TokenPosition.new(cur_index, end))
 		return result
 
-	static func comment_space_processing(tokens : Array) -> void:
-		var remove_indexes : Array = []
+	static func comment_space_processing(tokens: Array) -> void:
+		var remove_indexes: Array = []
 		for i in range(tokens.size()):
 			if tokens[i].id == TOKEN_ID.COMMENT_SINGLE || tokens[i].id == TOKEN_ID.COMMENT_MULTI:
 				tokens[i].id = TOKEN_ID.SPACE
-		var space_index : int = -1
+		var space_index: int = -1
 		for i in range(tokens.size()):
 			if tokens[i].id == TOKEN_ID.SPACE:
 				if space_index >= 0:
@@ -561,17 +558,17 @@ class Analysis:
 
 	#Analysis Syntax Description
 	class ASD:
-		func _init(t, s : int = SP.MAYBE, r : int = AR.MUST_ONE, i : bool = false):
+		func _init(t, s: int = SP.MAYBE, r: int = AR.MUST_ONE, i: bool = false):
 			token = t
 			space = s
 			rule = r
 			importance = i
 		var token
-		var space : int
-		var rule : int
-		var importance : bool
+		var space: int
+		var rule: int
+		var importance: bool
 	
-	var TEMPLATE_SYNTAX : Array = [
+	var TEMPLATE_SYNTAX: Array = [
 		Callable(self, "desc_syntax"),
 		ASD.new(TOKEN_ID.SYNTAX),
 		ASD.new(TOKEN_ID.EUQAL),
@@ -579,7 +576,7 @@ class Analysis:
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_IMPORT : Array = [
+	var TEMPLATE_IMPORT: Array = [
 		Callable(self, "desc_import"),
 		ASD.new(TOKEN_ID.IMPORT, SP.MUST),
 		ASD.new(TOKEN_ID.IMPORT_QUALIFICATION, SP.MUST, AR.MAYBE, true),
@@ -587,14 +584,14 @@ class Analysis:
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_PACKAGE : Array = [
+	var TEMPLATE_PACKAGE: Array = [
 		Callable(self, "desc_package"),
 		ASD.new(TOKEN_ID.PACKAGE, SP.MUST),
 		ASD.new([TOKEN_ID.IDENT, TOKEN_ID.FULL_IDENT], SP.MAYBE, AR.OR, true),
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_OPTION : Array = [
+	var TEMPLATE_OPTION: Array = [
 		Callable(self, "desc_option"),
 		ASD.new(TOKEN_ID.OPTION, SP.MUST),
 		ASD.new([TOKEN_ID.IDENT, TOKEN_ID.FULL_IDENT], SP.MAYBE, AR.OR, true),
@@ -603,7 +600,7 @@ class Analysis:
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_FIELD : Array = [
+	var TEMPLATE_FIELD: Array = [
 		Callable(self, "desc_field"),
 		ASD.new(TOKEN_ID.FIELD_QUALIFICATION, SP.MUST, AR.MAYBE, true),
 		ASD.new([TOKEN_ID.SIMPLE_DATA_TYPE, TOKEN_ID.IDENT, TOKEN_ID.FULL_IDENT], SP.MAYBE, AR.OR, true),
@@ -618,9 +615,9 @@ class Analysis:
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_FIELD_ONEOF : Array = TEMPLATE_FIELD
+	var TEMPLATE_FIELD_ONEOF: Array = TEMPLATE_FIELD
 	
-	var TEMPLATE_MAP_FIELD : Array = [
+	var TEMPLATE_MAP_FIELD: Array = [
 		Callable(self, "desc_map_field"),
 		ASD.new(TOKEN_ID.MAP),
 		ASD.new(TOKEN_ID.BRACKET_ANGLE_LEFT),
@@ -639,9 +636,9 @@ class Analysis:
 		ASD.new(TOKEN_ID.SEMICOLON)
 	]
 	
-	var TEMPLATE_MAP_FIELD_ONEOF : Array = TEMPLATE_MAP_FIELD
+	var TEMPLATE_MAP_FIELD_ONEOF: Array = TEMPLATE_MAP_FIELD
 	
-	var TEMPLATE_ENUM : Array = [
+	var TEMPLATE_ENUM: Array = [
 		Callable(self, "desc_enum"),
 		ASD.new(TOKEN_ID.ENUM, SP.MUST),
 		ASD.new(TOKEN_ID.IDENT, SP.MAYBE, AR.MUST_ONE, true),
@@ -658,40 +655,40 @@ class Analysis:
 		ASD.new(TOKEN_ID.BRACKET_CURLY_RIGHT)
 	]
 	
-	var TEMPLATE_MESSAGE_HEAD : Array = [
+	var TEMPLATE_MESSAGE_HEAD: Array = [
 		Callable(self, "desc_message_head"),
 		ASD.new(TOKEN_ID.MESSAGE, SP.MUST),
 		ASD.new(TOKEN_ID.IDENT, SP.MAYBE, AR.MUST_ONE, true),
 		ASD.new(TOKEN_ID.BRACKET_CURLY_LEFT)
 	]
 	
-	var TEMPLATE_MESSAGE_TAIL : Array = [
+	var TEMPLATE_MESSAGE_TAIL: Array = [
 		Callable(self, "desc_message_tail"),
 		ASD.new(TOKEN_ID.BRACKET_CURLY_RIGHT)
 	]
 	
-	var TEMPLATE_ONEOF_HEAD : Array = [
+	var TEMPLATE_ONEOF_HEAD: Array = [
 		Callable(self, "desc_oneof_head"),
 		ASD.new(TOKEN_ID.ONEOF, SP.MUST),
 		ASD.new(TOKEN_ID.IDENT, SP.MAYBE, AR.MUST_ONE, true),
 		ASD.new(TOKEN_ID.BRACKET_CURLY_LEFT),
 	]
 	
-	var TEMPLATE_ONEOF_TAIL : Array = [
+	var TEMPLATE_ONEOF_TAIL: Array = [
 		Callable(self, "desc_oneof_tail"),
 		ASD.new(TOKEN_ID.BRACKET_CURLY_RIGHT)
 	]
 	
-	var TEMPLATE_BEGIN : Array = [
+	var TEMPLATE_BEGIN: Array = [
 		null,
 		ASD.new(TOKEN_ID.SPACE, SP.NO, AR.MAYBE)
 	]
 	
-	var TEMPLATE_END : Array = [
+	var TEMPLATE_END: Array = [
 		null
 	]
 	
-	func get_token_id(tokens : Array, index : int) -> int:
+	func get_token_id(tokens: Array, index: int) -> int:
 		if index < tokens.size():
 			return tokens[index].id
 		return TOKEN_ID.UNDEFINED
@@ -704,15 +701,15 @@ class Analysis:
 	}
 
 	class TokenCompare:
-		func _init(s : int, i : int, d : String = ""):
+		func _init(s: int, i: int, d: String = ""):
 			state = s
 			index = i
 			description = d
-		var state : int
-		var index : int
-		var description : String
+		var state: int
+		var index: int
+		var description: String
 	
-	func check_space(tokens : Array, index : int, space) -> int:
+	func check_space(tokens: Array, index: int, space) -> int:
 		if get_token_id(tokens, index) == TOKEN_ID.SPACE:
 			if space == SP.MAYBE:
 				return 1
@@ -726,40 +723,40 @@ class Analysis:
 		return 0
 	
 	class IndexedToken:
-		func _init(t : TokenEntrance, i : int):
+		func _init(t: TokenEntrance, i: int):
 			token = t
 			index = i
-		var token : TokenEntrance
-		var index : int
+		var token: TokenEntrance
+		var index: int
 	
-	func token_importance_checkadd(template : ASD, token : TokenEntrance, index : int, importance : Array) -> void:
+	func token_importance_checkadd(template: ASD, token: TokenEntrance, index: int, importance: Array) -> void:
 		if template.importance:
 			importance.append(IndexedToken.new(token, index))
 	
 	class CompareSettings:
-		func _init(ci : int, n : int, pi : int, pn : String = ""):
+		func _init(ci: int, n: int, pi: int, pn: String = ""):
 			construction_index = ci
 			nesting = n
 			parent_index = pi
 			parent_name = pn
 			
-		var construction_index : int
-		var nesting : int
-		var parent_index : int
-		var parent_name : String
+		var construction_index: int
+		var nesting: int
+		var parent_index: int
+		var parent_name: String
 	
-	func description_compare(template : Array, tokens : Array, index : int, settings : CompareSettings) -> TokenCompare:
-		var j : int = index
-		var space : int
-		var rule : int
-		var rule_flag : bool
-		var cont : bool
-		var check : int
-		var maybe_group_skip : bool = false
-		var any_group_index : int = -1
-		var any_end_group_index : int = -1
-		var i : int = 0
-		var importance : Array = []
+	func description_compare(template: Array, tokens: Array, index: int, settings: CompareSettings) -> TokenCompare:
+		var j: int = index
+		var space: int
+		var rule: int
+		var rule_flag: bool
+		var cont: bool
+		var check: int
+		var maybe_group_skip: bool = false
+		var any_group_index: int = -1
+		var any_end_group_index: int = -1
+		var i: int = 0
+		var importance: Array = []
 		while true:
 			i += 1
 			if i >= template.size():
@@ -784,7 +781,7 @@ class Analysis:
 					token_importance_checkadd(template[i], tokens[j], j, importance)
 					rule_flag = true
 			elif rule == AR.ANY:
-				var find_any : bool = false
+				var find_any: bool = false
 				while true:
 					if template[i].token == get_token_id(tokens, j):
 						token_importance_checkadd(template[i], tokens[j], j, importance)
@@ -848,89 +845,89 @@ class Analysis:
 				any_end_group_index = i
 				i = any_group_index - 1
 		if template[0] != null:
-			var result : DescriptionResult = template[0].call(importance, settings)
+			var result: DescriptionResult = template[0].call(importance, settings)
 			if !result.success:
 				return TokenCompare.new(COMPARE_STATE.ERROR_VALUE, result.error, result.description)
 		return TokenCompare.new(COMPARE_STATE.DONE, j)
 	
-	var DESCRIPTION : Array = [
-		TEMPLATE_BEGIN,				#0
-		TEMPLATE_SYNTAX,			#1
-		TEMPLATE_IMPORT,			#2
-		TEMPLATE_PACKAGE,			#3
-		TEMPLATE_OPTION,			#4
-		TEMPLATE_FIELD,				#5
-		TEMPLATE_FIELD_ONEOF,		#6
-		TEMPLATE_MAP_FIELD,			#7
-		TEMPLATE_MAP_FIELD_ONEOF,	#8
-		TEMPLATE_ENUM,				#9
-		TEMPLATE_MESSAGE_HEAD,		#10
-		TEMPLATE_MESSAGE_TAIL,		#11
-		TEMPLATE_ONEOF_HEAD,		#12
-		TEMPLATE_ONEOF_TAIL,		#13
-		TEMPLATE_END				#14
+	var DESCRIPTION: Array = [
+		TEMPLATE_BEGIN, # 0
+		TEMPLATE_SYNTAX, # 1
+		TEMPLATE_IMPORT, # 2
+		TEMPLATE_PACKAGE, # 3
+		TEMPLATE_OPTION, # 4
+		TEMPLATE_FIELD, # 5
+		TEMPLATE_FIELD_ONEOF, # 6
+		TEMPLATE_MAP_FIELD, # 7
+		TEMPLATE_MAP_FIELD_ONEOF, # 8
+		TEMPLATE_ENUM, # 9
+		TEMPLATE_MESSAGE_HEAD, # 10
+		TEMPLATE_MESSAGE_TAIL, # 11
+		TEMPLATE_ONEOF_HEAD, # 12
+		TEMPLATE_ONEOF_TAIL, # 13
+		TEMPLATE_END # 14
 	]
 	
 	enum JUMP {
-		NOTHING = 0,				#nothing
-		SIMPLE = 1,					#simple jump
-		NESTED_INCREMENT = 2,		#nested increment
-		NESTED_DECREMENT = 3,		#nested decrement
-		MUST_NESTED_SIMPLE = 4,		#check: must be nested > 0
-		MUST_NESTED_INCREMENT = 5,	#check: must be nested > 0, then nested increment
-		MUST_NESTED_DECREMENT = 6,	#nested decrement, then check: must be nested > 0
+		NOTHING = 0, # nothing
+		SIMPLE = 1, # simple jump
+		NESTED_INCREMENT = 2, # nested increment
+		NESTED_DECREMENT = 3, # nested decrement
+		MUST_NESTED_SIMPLE = 4, # check: must be nested > 0
+		MUST_NESTED_INCREMENT = 5, # check: must be nested > 0, then nested increment
+		MUST_NESTED_DECREMENT = 6, # nested decrement, then check: must be nested > 0
 	}
 	
-	var TRANSLATION_TABLE : Array = [
+	var TRANSLATION_TABLE: Array = [
 	#   BEGIN	SYNTAX	IMPORT	PACKAGE	OPTION	FIELD	FIELD_O	MAP_F	MAP_F_O	ENUM	MES_H	MES_T	ONEOF_H	ONEOF_T	END
-	[	0, 		1, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0], #BEGIN
-	[	0, 		0, 		1, 		1, 		1, 		0, 		0, 		0, 		0, 		1, 		2, 		0, 		0, 		0, 		1], #SYNTAX
-	[	0, 		0, 		1, 		1, 		1, 		0, 		0, 		0, 		0, 		1, 		2, 		0, 		0, 		0, 		1], #IMPORT
-	[	0, 		0, 		1, 		1, 		1, 		0, 		0, 		0, 		0, 		1, 		2, 		0, 		0, 		0, 		1], #PACKAGE
-	[	0, 		0, 		1, 		1, 		1, 		0, 		0, 		0, 		0, 		1, 		2, 		0, 		0, 		0, 		1], #OPTION
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		0], #FIELD
-	[	0, 		0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		0, 		0, 		0, 		6, 		0], #FIELD_ONEOF
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		0], #MAP_F
-	[	0, 		0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		0, 		0, 		0, 		6, 		0], #MAP_F_ONEOF
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		1], #ENUM
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		0], #MES_H
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		1], #MES_T
-	[	0, 		0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		0, 		0, 		0, 		0, 		0], #ONEOF_H
-	[	0, 		0, 		0, 		0, 		0, 		4, 		0, 		4, 		0, 		1, 		2, 		3, 		5, 		0, 		1], #ONEOF_T
-	[	0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0, 		0]  #END
+	[0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], # BEGIN
+	[0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1], # SYNTAX
+	[0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1], # IMPORT
+	[0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1], # PACKAGE
+	[0, 0, 1, 1, 1, 0, 0, 0, 0, 1, 2, 0, 0, 0, 1], # OPTION
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 0], # FIELD
+	[0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 6, 0], # FIELD_ONEOF
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 0], # MAP_F
+	[0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 6, 0], # MAP_F_ONEOF
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 1], # ENUM
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 0], # MES_H
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 1], # MES_T
+	[0, 0, 0, 0, 0, 0, 4, 0, 4, 0, 0, 0, 0, 0, 0], # ONEOF_H
+	[0, 0, 0, 0, 0, 4, 0, 4, 0, 1, 2, 3, 5, 0, 1], # ONEOF_T
+	[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] # END
 	]
 	
 	class Construction:
-		func _init(b : int, e : int, d : int):
+		func _init(b: int, e: int, d: int):
 			begin_token_index = b
 			end_token_index = e
 			description = d
-		var begin_token_index : int
-		var end_token_index : int
-		var description : int
+		var begin_token_index: int
+		var end_token_index: int
+		var description: int
 	
 	class TranslationResult:
-		var constructions : Array = []
-		var done : bool = false
-		var error_description_id : int = -1
-		var error_description_text : String = ""
-		var parse_token_index : int = 0
-		var error_token_index : int = 0
+		var constructions: Array = []
+		var done: bool = false
+		var error_description_id: int = -1
+		var error_description_text: String = ""
+		var parse_token_index: int = 0
+		var error_token_index: int = 0
 	
-	func analyze_tokens(tokens : Array) -> TranslationResult:
-		var i : int = 0
-		var result : TranslationResult = TranslationResult.new()
-		var comp : TokenCompare
-		var cur_template_id : int = 0
-		var error : bool = false
-		var template_index : int
-		var comp_set : CompareSettings = CompareSettings.new(result.constructions.size(), 0, -1)
+	func analyze_tokens(tokens: Array) -> TranslationResult:
+		var i: int = 0
+		var result: TranslationResult = TranslationResult.new()
+		var comp: TokenCompare
+		var cur_template_id: int = 0
+		var error: bool = false
+		var template_index: int
+		var comp_set: CompareSettings = CompareSettings.new(result.constructions.size(), 0, -1)
 		comp = description_compare(DESCRIPTION[cur_template_id], tokens, i, comp_set)
 		if comp.state == COMPARE_STATE.DONE:
 			i = comp.index
 			while true:
-				var end : bool = true
-				var find : bool = false
+				var end: bool = true
+				var find: bool = false
 				for j in range(TRANSLATION_TABLE[cur_template_id].size()):
 					template_index = j
 					if j == DESCRIPTION.size() - 1 && i < tokens.size():
@@ -1042,7 +1039,7 @@ class Analysis:
 	}
 	
 	class ASTClass:
-		func _init(n : String, t : int, p : int, pn : String, o : String, ci : int):
+		func _init(n: String, t: int, p: int, pn: String, o: String, ci: int):
 			name = n
 			type = t
 			parent_index = p
@@ -1051,33 +1048,33 @@ class Analysis:
 			construction_index = ci
 			values = []
 		
-		var name : String
-		var type : int
-		var parent_index : int
-		var parent_name : String
-		var option : String
+		var name: String
+		var type: int
+		var parent_index: int
+		var parent_name: String
+		var option: String
 		var construction_index
-		var values : Array
+		var values: Array
 		
 		func copy() -> ASTClass:
-			var res : ASTClass = ASTClass.new(name, type, parent_index, parent_name, option, construction_index)
+			var res: ASTClass = ASTClass.new(name, type, parent_index, parent_name, option, construction_index)
 			for v in values:
 				res.values.append(v.copy())
 			return res
 	
 	class ASTEnumValue:
-		func _init(n : String, v : String):
+		func _init(n: String, v: String):
 			name = n
 			value = v
 		
-		var name : String
-		var value : String
+		var name: String
+		var value: String
 		
 		func copy() -> ASTEnumValue:
 			return ASTEnumValue.new(name, value)
 	
 	class ASTField:
-		func _init(t, n : String, tn : String, p : int, q : int, o : int, ci : int, mf : bool):
+		func _init(t, n: String, tn: String, p: int, q: int, o: int, ci: int, mf: bool):
 			tag = t
 			name = n
 			type_name = tn
@@ -1088,18 +1085,18 @@ class Analysis:
 			is_map_field = mf
 		
 		var tag
-		var name : String
-		var type_name : String
-		var parent_class_id : int
-		var qualificator : int
-		var option : int
-		var construction_index : int
-		var is_map_field : bool
-		var field_type : int = FIELD_TYPE.UNDEFINED
-		var type_class_id : int = -1
+		var name: String
+		var type_name: String
+		var parent_class_id: int
+		var qualificator: int
+		var option: int
+		var construction_index: int
+		var is_map_field: bool
+		var field_type: int = FIELD_TYPE.UNDEFINED
+		var type_class_id: int = -1
 		
 		func copy() -> ASTField:
-			var res : ASTField = ASTField.new(tag, name, type_name, parent_class_id, qualificator, option, construction_index, is_map_field)
+			var res: ASTField = ASTField.new(tag, name, type_name, parent_class_id, qualificator, option, construction_index, is_map_field)
 			res.field_type = field_type
 			res.type_class_id = type_class_id
 			return res
@@ -1110,56 +1107,56 @@ class Analysis:
 	}
 	
 	class ASTFieldGroup:
-		func _init(n : String, pi : int, r : int):
+		func _init(n: String, pi: int, r: int):
 			name = n
 			parent_class_id = pi
 			rule = r
 			opened = true
 			
-		var name : String
-		var parent_class_id : int
-		var rule : int
-		var field_indexes : Array = []
-		var opened : bool
+		var name: String
+		var parent_class_id: int
+		var rule: int
+		var field_indexes: Array = []
+		var opened: bool
 		
 		func copy() -> ASTFieldGroup:
-			var res : ASTFieldGroup = ASTFieldGroup.new(name, parent_class_id, rule)
+			var res: ASTFieldGroup = ASTFieldGroup.new(name, parent_class_id, rule)
 			res.opened = opened
 			for fi in field_indexes:
 				res.field_indexes.append(fi)
 			return res
 	
 	class ASTImport:
-		func _init(a_path : String, a_public : bool, sha : String):
+		func _init(a_path: String, a_public: bool, sha: String):
 			path = a_path
 			public = a_public
 			sha256 = sha
 			
-		var path : String
-		var public : bool
-		var sha256 : String
+		var path: String
+		var public: bool
+		var sha256: String
 	
-	var class_table : Array = []
-	var field_table : Array = []
-	var group_table : Array = []
-	var import_table : Array = []
-	var proto_version : int = 0
+	var class_table: Array = []
+	var field_table: Array = []
+	var group_table: Array = []
+	var import_table: Array = []
+	var proto_version: int = 0
 	
 	class DescriptionResult:
-		func _init(s : bool = true, e = null, d : String = ""):
+		func _init(s: bool = true, e = null, d: String = ""):
 			success = s
 			error = e
 			description = d
-		var success : bool
+		var success: bool
 		var error
-		var description : String
+		var description: String
 	
-	static func get_text_from_token(string_token : TokenEntrance) -> String:
+	static func get_text_from_token(string_token: TokenEntrance) -> String:
 		return string_token.text.substr(1, string_token.text.length() - 2)
 	
-	func desc_syntax(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
-		var s : String = get_text_from_token(indexed_tokens[0].token)
+	func desc_syntax(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
+		var s: String = get_text_from_token(indexed_tokens[0].token)
 		if s == "proto2":
 			proto_version = 2
 		elif s == "proto3":
@@ -1170,16 +1167,16 @@ class Analysis:
 			result.description = "Unspecified version of the protocol. Use \"proto2\" or \"proto3\" syntax string."
 		return result
 		
-	func desc_import(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
-		var offset : int = 0
-		var public : bool = false
+	func desc_import(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
+		var offset: int = 0
+		var public: bool = false
 		if indexed_tokens[offset].token.id == TOKEN_ID.IMPORT_QUALIFICATION:
 			if indexed_tokens[offset].token.text == "public":
 				public = true
 			offset += 1
-		var f_name : String = path_dir + get_text_from_token(indexed_tokens[offset].token)
-		var sha : String = FileAccess.get_sha256(f_name)
+		var f_name: String = path_dir + get_text_from_token(indexed_tokens[offset].token)
+		var sha: String = FileAccess.get_sha256(f_name)
 		if FileAccess.file_exists(f_name):
 			for i in import_table:
 				if i.path == f_name:
@@ -1199,21 +1196,21 @@ class Analysis:
 			result.description = "Import file '" + f_name + "' not found."
 		return result
 		
-	func desc_package(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
+	func desc_package(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		printerr("UNRELEASED desc_package: ", indexed_tokens.size(), ", nesting: ", settings.nesting)
-		var result : DescriptionResult = DescriptionResult.new()
+		var result: DescriptionResult = DescriptionResult.new()
 		return result
 		
-	func desc_option(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
+	func desc_option(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		printerr("UNRELEASED desc_option: ", indexed_tokens.size(), ", nesting: ", settings.nesting)
-		var result : DescriptionResult = DescriptionResult.new()
+		var result: DescriptionResult = DescriptionResult.new()
 		return result
 	
-	func desc_field(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
-		var qualifcator : int = FIELD_QUALIFICATOR.OPTIONAL
-		var option : int
-		var offset : int = 0
+	func desc_field(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
+		var qualifcator: int = FIELD_QUALIFICATOR.OPTIONAL
+		var option: int
+		var offset: int = 0
 		
 		if proto_version == 3:
 			option = FIELD_OPTION.PACKED
@@ -1243,9 +1240,9 @@ class Analysis:
 						result.error = indexed_tokens[offset].index
 						result.description = "Using the 'required', 'optional' or 'repeated' qualificator necessarily in Protobuf v2."
 						return result
-		var type_name : String = indexed_tokens[offset].token.text; offset += 1
-		var field_name : String = indexed_tokens[offset].token.text; offset += 1
-		var tag : String = indexed_tokens[offset].token.text; offset += 1
+		var type_name: String = indexed_tokens[offset].token.text; offset += 1
+		var field_name: String = indexed_tokens[offset].token.text; offset += 1
+		var tag: String = indexed_tokens[offset].token.text; offset += 1
 		
 		if indexed_tokens.size() == offset + 2:
 			if indexed_tokens[offset].token.text == "packed":
@@ -1271,25 +1268,25 @@ class Analysis:
 		field_table.append(ASTField.new(tag, field_name, type_name, settings.parent_index, qualifcator, option, settings.construction_index, false))
 		return result
 	
-	func desc_map_field(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
-		var qualifcator : int = FIELD_QUALIFICATOR.REPEATED
-		var option : int
-		var offset : int = 0
+	func desc_map_field(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
+		var qualifcator: int = FIELD_QUALIFICATOR.REPEATED
+		var option: int
+		var offset: int = 0
 		
 		if proto_version == 3:
 			option = FIELD_OPTION.PACKED
 		if proto_version == 2:
 			option = FIELD_OPTION.NOT_PACKED
 			
-		var key_type_name : String = indexed_tokens[offset].token.text; offset += 1
+		var key_type_name: String = indexed_tokens[offset].token.text; offset += 1
 		if key_type_name == "float" || key_type_name == "double" || key_type_name == "bytes":
 			result.success = false
 			result.error = indexed_tokens[offset - 1].index
 			result.description = "Map 'key_type' can't be floating point types and bytes."
-		var type_name : String  = indexed_tokens[offset].token.text; offset += 1
-		var field_name : String  = indexed_tokens[offset].token.text; offset += 1
-		var tag : String = indexed_tokens[offset].token.text; offset += 1
+		var type_name: String = indexed_tokens[offset].token.text; offset += 1
+		var field_name: String = indexed_tokens[offset].token.text; offset += 1
+		var tag: String = indexed_tokens[offset].token.text; offset += 1
 		
 		if indexed_tokens.size() == offset + 2:
 			if indexed_tokens[offset].token.text == "packed":
@@ -1315,18 +1312,18 @@ class Analysis:
 		
 		return result
 	
-	func desc_enum(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
-		var option : String = ""
-		var offset : int = 0
-		var type_name : String = indexed_tokens[offset].token.text; offset += 1
+	func desc_enum(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
+		var option: String = ""
+		var offset: int = 0
+		var type_name: String = indexed_tokens[offset].token.text; offset += 1
 		if indexed_tokens[offset].token.id == TOKEN_ID.ENUM_OPTION:
 			if indexed_tokens[offset].token.text == "allow_alias" && indexed_tokens[offset + 1].token.text == "true":
 				option = "allow_alias"
 			offset += 2
-		var value : ASTEnumValue
-		var enum_class : ASTClass = ASTClass.new(type_name, CLASS_TYPE.ENUM, settings.parent_index, settings.parent_name, option, settings.construction_index)
-		var first_value : bool = true
+		var value: ASTEnumValue
+		var enum_class: ASTClass = ASTClass.new(type_name, CLASS_TYPE.ENUM, settings.parent_index, settings.parent_name, option, settings.construction_index)
+		var first_value: bool = true
 		while offset < indexed_tokens.size():
 			if first_value:
 				if indexed_tokens[offset + 1].token.text != "0":
@@ -1347,21 +1344,21 @@ class Analysis:
 		class_table.append(enum_class)
 		return result
 		
-	func desc_message_head(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
+	func desc_message_head(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
 		class_table.append(ASTClass.new(indexed_tokens[0].token.text, CLASS_TYPE.MESSAGE, settings.parent_index, settings.parent_name, "", settings.construction_index))
 		settings.parent_index = class_table.size() - 1
 		settings.parent_name = settings.parent_name + "." + indexed_tokens[0].token.text
 		return result
 		
-	func desc_message_tail(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
+	func desc_message_tail(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		settings.parent_index = class_table[settings.parent_index].parent_index
 		settings.parent_name = class_table[settings.parent_index + 1].parent_name
-		var result : DescriptionResult = DescriptionResult.new()
+		var result: DescriptionResult = DescriptionResult.new()
 		return result
 	
-	func desc_oneof_head(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
-		var result : DescriptionResult = DescriptionResult.new()
+	func desc_oneof_head(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
+		var result: DescriptionResult = DescriptionResult.new()
 		for g in group_table:
 			if g.parent_class_id == settings.parent_index && g.name == indexed_tokens[0].token.text:
 				result.success = false
@@ -1371,41 +1368,41 @@ class Analysis:
 		group_table.append(ASTFieldGroup.new(indexed_tokens[0].token.text, settings.parent_index, AST_GROUP_RULE.ONEOF))
 		return result
 		
-	func desc_oneof_tail(indexed_tokens : Array, settings : CompareSettings) -> DescriptionResult:
+	func desc_oneof_tail(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		group_table[group_table.size() - 1].opened = false
-		var result : DescriptionResult = DescriptionResult.new()
+		var result: DescriptionResult = DescriptionResult.new()
 		return result
 		
 	func analyze() -> AnalyzeResult:
-		var analyze_result : AnalyzeResult = AnalyzeResult.new()
+		var analyze_result: AnalyzeResult = AnalyzeResult.new()
 		analyze_result.doc = document
 		analyze_result.classes = class_table
 		analyze_result.fields = field_table
 		analyze_result.groups = group_table
 		analyze_result.state = false
-		var result : TokenResult = tokenizer()
+		var result: TokenResult = tokenizer()
 		if result.errors.size() > 0:
 			for v in result.errors:
-				var spos : Helper.StringPosition = Helper.str_pos(document.text, v.position)
-				var err_text : String = "Unexpected token intersection " + "'" + document.text.substr(v.position.begin, spos.length) + "'"
+				var spos: Helper.StringPosition = Helper.str_pos(document.text, v.position)
+				var err_text: String = "Unexpected token intersection " + "'" + document.text.substr(v.position.begin, spos.length) + "'"
 				printerr(Helper.error_string(document.name, spos.str_num, spos.column, err_text))
 		else:
 			var integrity = check_tokens_integrity(result.tokens, document.text.length() - 1)
 			if integrity.size() > 0:
 				for v in integrity:
 					var spos: Helper.StringPosition = Helper.str_pos(document.text, TokenPosition.new(v.begin, v.end))
-					var err_text : String = "Unexpected token " + "'" + document.text.substr(v.begin, spos.length) + "'"
+					var err_text: String = "Unexpected token " + "'" + document.text.substr(v.begin, spos.length) + "'"
 					printerr(Helper.error_string(document.name, spos.str_num, spos.column, err_text))
 			else:
 				analyze_result.tokens = result.tokens
 				comment_space_processing(result.tokens)
-				var syntax : TranslationResult = analyze_tokens(result.tokens)
+				var syntax: TranslationResult = analyze_tokens(result.tokens)
 				if !syntax.done:
-					var pos_main : TokenPosition = Helper.text_pos(result.tokens, syntax.parse_token_index)
-					var pos_inner : TokenPosition = Helper.text_pos(result.tokens, syntax.error_token_index)
-					var spos_main : Helper.StringPosition = Helper.str_pos(document.text, pos_main)
-					var spos_inner : Helper.StringPosition = Helper.str_pos(document.text, pos_inner)
-					var err_text : String = "Syntax error in construction '" + result.tokens[syntax.parse_token_index].text + "'. "
+					var pos_main: TokenPosition = Helper.text_pos(result.tokens, syntax.parse_token_index)
+					var pos_inner: TokenPosition = Helper.text_pos(result.tokens, syntax.error_token_index)
+					var spos_main: Helper.StringPosition = Helper.str_pos(document.text, pos_main)
+					var spos_inner: Helper.StringPosition = Helper.str_pos(document.text, pos_inner)
+					var err_text: String = "Syntax error in construction '" + result.tokens[syntax.parse_token_index].text + "'. "
 					err_text += "Unacceptable use '" + result.tokens[syntax.error_token_index].text + "' at:" + str(spos_inner.str_num) + ":" + str(spos_inner.column)
 					err_text += "\n" + syntax.error_description_text
 					printerr(Helper.error_string(document.name, spos_main.str_num, spos_main.column, err_text))
@@ -1417,15 +1414,14 @@ class Analysis:
 		return analyze_result
 
 class Semantic:
+	var class_table: Array
+	var field_table: Array
+	var group_table: Array
+	var syntax: Analysis.TranslationResult
+	var tokens: Array
+	var document: Document
 	
-	var class_table : Array
-	var field_table : Array
-	var group_table : Array
-	var syntax : Analysis.TranslationResult
-	var tokens : Array
-	var document : Document
-	
-	func _init(analyze_result : AnalyzeResult):
+	func _init(analyze_result: AnalyzeResult):
 		class_table = analyze_result.classes
 		field_table = analyze_result.fields
 		group_table = analyze_result.groups
@@ -1461,7 +1457,7 @@ class Semantic:
 	}
 	
 	class CheckResult:
-		func _init(mci : int, aci : int, ti : int, s : int):
+		func _init(mci: int, aci: int, ti: int, s: int):
 			main_construction_index = mci
 			associated_construction_index = aci
 			table_index = ti
@@ -1470,64 +1466,64 @@ class Semantic:
 		var main_construction_index: int = -1
 		var associated_construction_index: int = -1
 		var table_index: int = -1
-		var subject : int
+		var subject: int
 	
 	func check_class_names() -> Array:
-		var result : Array = []
+		var result: Array = []
 		for i in range(class_table.size()):
-			var the_class_name : String = class_table[i].parent_name + "." + class_table[i].name
+			var the_class_name: String = class_table[i].parent_name + "." + class_table[i].name
 			for j in range(i + 1, class_table.size(), 1):
-				var inner_name : String = class_table[j].parent_name + "." + class_table[j].name
+				var inner_name: String = class_table[j].parent_name + "." + class_table[j].name
 				if inner_name == the_class_name:
-					var check : CheckResult = CheckResult.new(class_table[j].construction_index, class_table[i].construction_index, j, CHECK_SUBJECT.CLASS_NAME)
+					var check: CheckResult = CheckResult.new(class_table[j].construction_index, class_table[i].construction_index, j, CHECK_SUBJECT.CLASS_NAME)
 					result.append(check)
 					break
 		return result
 	
 	func check_field_names() -> Array:
-		var result : Array = []
+		var result: Array = []
 		for i in range(field_table.size()):
-			var the_class_name : String = class_table[field_table[i].parent_class_id].parent_name + "." + class_table[field_table[i].parent_class_id].name
+			var the_class_name: String = class_table[field_table[i].parent_class_id].parent_name + "." + class_table[field_table[i].parent_class_id].name
 			for j in range(i + 1, field_table.size(), 1):
-				var inner_name : String = class_table[field_table[j].parent_class_id].parent_name + "." + class_table[field_table[j].parent_class_id].name
+				var inner_name: String = class_table[field_table[j].parent_class_id].parent_name + "." + class_table[field_table[j].parent_class_id].name
 				if inner_name == the_class_name:
 					if field_table[i].name == field_table[j].name:
-						var check : CheckResult = CheckResult.new(field_table[j].construction_index, field_table[i].construction_index, j, CHECK_SUBJECT.FIELD_NAME)
+						var check: CheckResult = CheckResult.new(field_table[j].construction_index, field_table[i].construction_index, j, CHECK_SUBJECT.FIELD_NAME)
 						result.append(check)
 						break
 					if field_table[i].tag == field_table[j].tag:
-						var check : CheckResult = CheckResult.new(field_table[j].construction_index, field_table[i].construction_index, j, CHECK_SUBJECT.FIELD_TAG_NUMBER)
+						var check: CheckResult = CheckResult.new(field_table[j].construction_index, field_table[i].construction_index, j, CHECK_SUBJECT.FIELD_TAG_NUMBER)
 						result.append(check)
 						break
 		return result
 	
-	func find_full_class_name(the_class_name : String) -> int:
+	func find_full_class_name(the_class_name: String) -> int:
 		for i in range(class_table.size()):
 			if the_class_name == class_table[i].parent_name + "." + class_table[i].name:
 				return i
 		return -1
 	
-	func find_class_name(the_class_name : String) -> int:
+	func find_class_name(the_class_name: String) -> int:
 		for i in range(class_table.size()):
 			if the_class_name == class_table[i].name:
 				return i
 		return -1
 	
-	func get_class_childs(class_index : int) -> Array:
-		var result : Array = []
+	func get_class_childs(class_index: int) -> Array:
+		var result: Array = []
 		for i in range(class_table.size()):
 			if class_table[i].parent_index == class_index:
 				result.append(i)
 		return result
 	
-	func find_in_childs(the_class_name : String, child_indexes : Array) -> int:
+	func find_in_childs(the_class_name: String, child_indexes: Array) -> int:
 		for c in child_indexes:
 			if the_class_name == class_table[c].name:
 				return c
 		return -1
 	
 	func determine_field_types() -> Array:
-		var result : Array = []
+		var result: Array = []
 		for f in field_table:
 			if STRING_FIELD_TYPE.has(f.type_name):
 				f.field_type = STRING_FIELD_TYPE[f.type_name]
@@ -1537,16 +1533,16 @@ class Semantic:
 				else:
 					# Reset result from previous assignment, that can be incorrect because of merging of imports
 					f.type_class_id = -1
-					var splited_name : Array = f.type_name.split(".", false)
-					var cur_class_index : int = f.parent_class_id
-					var exit : bool = false
-					while(true):
-						var find : bool = false
+					var splited_name: Array = f.type_name.split(".", false)
+					var cur_class_index: int = f.parent_class_id
+					var exit: bool = false
+					while (true):
+						var find: bool = false
 						if cur_class_index == -1:
 							break
 						for n in splited_name:
-							var childs_and_parent : Array = get_class_childs(cur_class_index)
-							var res_index : int = find_in_childs(n, childs_and_parent)
+							var childs_and_parent: Array = get_class_childs(cur_class_index)
+							var res_index: int = find_in_childs(n, childs_and_parent)
 							if res_index >= 0:
 								find = true
 								cur_class_index = res_index
@@ -1579,22 +1575,22 @@ class Semantic:
 		return result
 	
 	func check_constructions() -> Array:
-		var cl : Array = check_class_names()
-		var fl : Array = check_field_names()
-		var ft : Array = determine_field_types()
+		var cl: Array = check_class_names()
+		var fl: Array = check_field_names()
+		var ft: Array = determine_field_types()
 		return cl + fl + ft
 		
 	func check() -> bool:
-		var check_result : Array = check_constructions()
+		var check_result: Array = check_constructions()
 		if check_result.size() == 0:
 			return true
 		else:
 			for v in check_result:
-				var main_tok : int = syntax.constructions[v.main_construction_index].begin_token_index
-				var assoc_tok : int = syntax.constructions[v.associated_construction_index].begin_token_index
-				var main_err_pos : Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, main_tok))
-				var assoc_err_pos : Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, assoc_tok))
-				var err_text : String
+				var main_tok: int = syntax.constructions[v.main_construction_index].begin_token_index
+				var assoc_tok: int = syntax.constructions[v.associated_construction_index].begin_token_index
+				var main_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, main_tok))
+				var assoc_err_pos: Helper.StringPosition = Helper.str_pos(document.text, Helper.text_pos(tokens, assoc_tok))
+				var err_text: String
 				if v.subject == CHECK_SUBJECT.CLASS_NAME:
 					var class_type = "Undefined"
 					if class_table[v.table_index].type == Analysis.CLASS_TYPE.ENUM:
@@ -1616,461 +1612,808 @@ class Semantic:
 		return false
 
 class Translator:
+	var class_table: Array
+	var field_table: Array
+	var group_table: Array
+	var proto_version: int
 	
-	var class_table : Array
-	var field_table : Array
-	var group_table : Array
-	var proto_version : int
-	
-	func _init(analyzer_result : AnalyzeResult):
+	func _init(analyzer_result: AnalyzeResult):
 		class_table = analyzer_result.classes
 		field_table = analyzer_result.fields
 		group_table = analyzer_result.groups
 		proto_version = analyzer_result.version
 	
-	func tabulate(text : String, nesting : int) -> String:
-		var tab : String = ""
+	func tabulate(text: String, nesting: int) -> String:
+		var tab: String = ""
 		for i in range(nesting):
 			tab += "\t"
 		return tab + text
 	
 	func default_dict_text() -> String:
-		if proto_version == 2:
-			return "DEFAULT_VALUES_2"
-		elif proto_version == 3:
-			return "DEFAULT_VALUES_3"
-		return "TRANSLATION_ERROR"
+		match proto_version:
+			2: return "DEFAULT_VALUES_2"
+			3: return "DEFAULT_VALUES_3"
+			_: return "TRANSLATION_ERROR"
+
+	# func default_dict_text() -> String:
+	# 	if proto_version == 2:
+	# 		return "DEFAULT_VALUES_2"
+	# 	elif proto_version == 3:
+	# 		return "DEFAULT_VALUES_3"
+	# 	return "TRANSLATION_ERROR"
 	
-	func generate_field_type(field : Analysis.ASTField) -> String:
-		var text : String = "PB_DATA_TYPE."
-		if field.field_type == Analysis.FIELD_TYPE.INT32:
-			return text + "INT32"
-		elif field.field_type == Analysis.FIELD_TYPE.SINT32:
-			return text + "SINT32"
-		elif field.field_type == Analysis.FIELD_TYPE.UINT32:
-			return text + "UINT32"
-		elif field.field_type == Analysis.FIELD_TYPE.INT64:
-			return text + "INT64"
-		elif field.field_type == Analysis.FIELD_TYPE.SINT64:
-			return text + "SINT64"
-		elif field.field_type == Analysis.FIELD_TYPE.UINT64:
-			return text + "UINT64"
-		elif field.field_type == Analysis.FIELD_TYPE.BOOL:
-			return text + "BOOL"
-		elif field.field_type == Analysis.FIELD_TYPE.ENUM:
-			return text + "ENUM"
-		elif field.field_type == Analysis.FIELD_TYPE.FIXED32:
-			return text + "FIXED32"
-		elif field.field_type == Analysis.FIELD_TYPE.SFIXED32:
-			return text + "SFIXED32"
-		elif field.field_type == Analysis.FIELD_TYPE.FLOAT:
-			return text + "FLOAT"
-		elif field.field_type == Analysis.FIELD_TYPE.FIXED64:
-			return text + "FIXED64"
-		elif field.field_type == Analysis.FIELD_TYPE.SFIXED64:
-			return text + "SFIXED64"
-		elif field.field_type == Analysis.FIELD_TYPE.DOUBLE:
-			return text + "DOUBLE"
-		elif field.field_type == Analysis.FIELD_TYPE.STRING:
-			return text + "STRING"
-		elif field.field_type == Analysis.FIELD_TYPE.BYTES:
-			return text + "BYTES"
-		elif field.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			return text + "MESSAGE"
-		elif field.field_type == Analysis.FIELD_TYPE.MAP:
-			return text + "MAP"
-		return text
+	# func generate_field_type(field: Analysis.ASTField) -> String:
+	# 	var text: String = "PB_DATA_TYPE."
+	# 	if field.field_type == Analysis.FIELD_TYPE.INT32:
+	# 		return text + "INT32"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.SINT32:
+	# 		return text + "SINT32"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.UINT32:
+	# 		return text + "UINT32"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.INT64:
+	# 		return text + "INT64"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.SINT64:
+	# 		return text + "SINT64"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.UINT64:
+	# 		return text + "UINT64"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.BOOL:
+	# 		return text + "BOOL"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.ENUM:
+	# 		return text + "ENUM"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.FIXED32:
+	# 		return text + "FIXED32"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.SFIXED32:
+	# 		return text + "SFIXED32"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.FLOAT:
+	# 		return text + "FLOAT"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.FIXED64:
+	# 		return text + "FIXED64"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.SFIXED64:
+	# 		return text + "SFIXED64"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.DOUBLE:
+	# 		return text + "DOUBLE"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.STRING:
+	# 		return text + "STRING"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.BYTES:
+	# 		return text + "BYTES"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.MESSAGE:
+	# 		return text + "MESSAGE"
+	# 	elif field.field_type == Analysis.FIELD_TYPE.MAP:
+	# 		return text + "MAP"
+	# 	return text
+
+	const TYPE_MAP: Dictionary[Analysis.FIELD_TYPE, String] = {
+		Analysis.FIELD_TYPE.INT32: "PB_DATA_TYPE.INT32",
+		Analysis.FIELD_TYPE.SINT32: "PB_DATA_TYPE.SINT32",
+		Analysis.FIELD_TYPE.UINT32: "PB_DATA_TYPE.UINT32",
+		Analysis.FIELD_TYPE.INT64: "PB_DATA_TYPE.INT64",
+		Analysis.FIELD_TYPE.SINT64: "PB_DATA_TYPE.SINT64",
+		Analysis.FIELD_TYPE.UINT64: "PB_DATA_TYPE.UINT64",
+		Analysis.FIELD_TYPE.BOOL: "PB_DATA_TYPE.BOOL",
+		Analysis.FIELD_TYPE.ENUM: "PB_DATA_TYPE.ENUM",
+		Analysis.FIELD_TYPE.FIXED32: "PB_DATA_TYPE.FIXED32",
+		Analysis.FIELD_TYPE.SFIXED32: "PB_DATA_TYPE.SFIXED32",
+		Analysis.FIELD_TYPE.FLOAT: "PB_DATA_TYPE.FLOAT",
+		Analysis.FIELD_TYPE.FIXED64: "PB_DATA_TYPE.FIXED64",
+		Analysis.FIELD_TYPE.SFIXED64: "PB_DATA_TYPE.SFIXED64",
+		Analysis.FIELD_TYPE.DOUBLE: "PB_DATA_TYPE.DOUBLE",
+		Analysis.FIELD_TYPE.STRING: "PB_DATA_TYPE.STRING",
+		Analysis.FIELD_TYPE.BYTES: "PB_DATA_TYPE.BYTES",
+		Analysis.FIELD_TYPE.MESSAGE: "PB_DATA_TYPE.MESSAGE",
+		Analysis.FIELD_TYPE.MAP: "PB_DATA_TYPE.MAP"
+	}
+	func generate_field_type(field: Analysis.ASTField) -> String:
+		return TYPE_MAP.get(field.field_type, "PB_DATA_TYPE.")
 	
-	func generate_field_rule(field : Analysis.ASTField) -> String:
-		var text : String = "PB_RULE."
-		if field.qualificator == Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-			return text + "OPTIONAL"
-		elif field.qualificator == Analysis.FIELD_QUALIFICATOR.REQUIRED:
-			return text + "REQUIRED"
-		elif field.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-			return text + "REPEATED"
-		elif field.qualificator == Analysis.FIELD_QUALIFICATOR.RESERVED:
-			return text + "RESERVED"
-		return text
+	func generate_field_rule(field: Analysis.ASTField) -> String:
+		const PREFIX: String = "PB_RULE."
+		
+		match field.qualificator:
+			Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+				return PREFIX + "OPTIONAL"
+			Analysis.FIELD_QUALIFICATOR.REQUIRED:
+				return PREFIX + "REQUIRED"
+			Analysis.FIELD_QUALIFICATOR.REPEATED:
+				return PREFIX + "REPEATED"
+			Analysis.FIELD_QUALIFICATOR.RESERVED:
+				return PREFIX + "RESERVED"
+			_:
+				return PREFIX
 	
-	func generate_gdscript_type(field : Analysis.ASTField) -> String:
+	func generate_gdscript_type(field: Analysis.ASTField) -> String:
 		if field.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			var type_name : String = class_table[field.type_class_id].parent_name + "." + class_table[field.type_class_id].name
+			var type_name: String = class_table[field.type_class_id].parent_name + "." + class_table[field.type_class_id].name
 			return type_name.substr(1, type_name.length() - 1)
 		return generate_gdscript_simple_type(field)
 
-	func generate_gdscript_simple_type(field : Analysis.ASTField) -> String:
-		if field.field_type == Analysis.FIELD_TYPE.INT32:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.SINT32:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.UINT32:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.INT64:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.SINT64:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.UINT64:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.BOOL:
-			return "bool"
-		elif field.field_type == Analysis.FIELD_TYPE.ENUM:
-			return ""
-		elif field.field_type == Analysis.FIELD_TYPE.FIXED32:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.SFIXED32:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.FLOAT:
-			return "float"
-		elif field.field_type == Analysis.FIELD_TYPE.FIXED64:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.SFIXED64:
-			return "int"
-		elif field.field_type == Analysis.FIELD_TYPE.DOUBLE:
-			return "float"
-		elif field.field_type == Analysis.FIELD_TYPE.STRING:
-			return "String"
-		elif field.field_type == Analysis.FIELD_TYPE.BYTES:
-			return "PackedByteArray"
-		return ""
+	func generate_gdscript_simple_type(field: Analysis.ASTField) -> String:
+		match field.field_type:
+			Analysis.FIELD_TYPE.INT32, \
+			Analysis.FIELD_TYPE.SINT32, \
+			Analysis.FIELD_TYPE.UINT32, \
+			Analysis.FIELD_TYPE.INT64, \
+			Analysis.FIELD_TYPE.SINT64, \
+			Analysis.FIELD_TYPE.UINT64, \
+			Analysis.FIELD_TYPE.FIXED32, \
+			Analysis.FIELD_TYPE.SFIXED32, \
+			Analysis.FIELD_TYPE.FIXED64, \
+			Analysis.FIELD_TYPE.SFIXED64:
+				return "int"
+			
+			Analysis.FIELD_TYPE.BOOL:
+				return "bool"
+				
+			Analysis.FIELD_TYPE.FLOAT, \
+			Analysis.FIELD_TYPE.DOUBLE:
+				return "float"
+				
+			Analysis.FIELD_TYPE.STRING:
+				return "StringName"
+				
+			Analysis.FIELD_TYPE.BYTES:
+				return "PackedByteArray"
+				
+			_:
+				return ""
 
-	func generate_field_constructor(field_index : int, nesting : int) -> String:
-		var text : String = ""
-		var f : Analysis.ASTField = field_table[field_index]
-		var field_name : String = "__" + f.name
-		var pbfield_text : String
-		var default_var_name := field_name + "_default"
+	func generate_field_constructor(field_index: int, nesting: int) -> String:
+		var builder := PackedStringArray()
+		var f = field_table[field_index]
+		var field_name: String = "__" + f.name
+		var default_var_name: String = field_name + "_default"
+		
+		# Handle repeated field default value
 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
 			var type_name := generate_gdscript_type(f)
-			if type_name:
-				text = tabulate("var %s: Array[%s] = []\n" % [default_var_name, type_name], nesting)
-			else:
-				text = tabulate("var %s: Array = []\n" % [default_var_name], nesting)
-		pbfield_text += field_name + " = PBField.new("
-		pbfield_text += "\"" + f.name + "\", "
-		pbfield_text += generate_field_type(f) + ", "
-		pbfield_text += generate_field_rule(f) + ", "
-		pbfield_text += str(f.tag) + ", "
-		if f.option == Analysis.FIELD_OPTION.PACKED:
-			pbfield_text += "true"
-		elif f.option == Analysis.FIELD_OPTION.NOT_PACKED:
-			pbfield_text += "false"
-		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-			pbfield_text += ", " + default_var_name
-		else:
-			pbfield_text += ", " + default_dict_text() + "[" + generate_field_type(f) + "]"
-		pbfield_text += ")\n"
-		text += tabulate(pbfield_text, nesting)
-		if f.is_map_field:
-			text += tabulate(field_name + ".is_map_field = true\n", nesting)
-		text += tabulate("service = PBServiceField.new()\n", nesting)
-		text += tabulate("service.field = " + field_name + "\n", nesting)
-		if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				text += tabulate("service.func_ref = Callable(self, \"add_" + f.name + "\")\n", nesting)
-			else:
-				text += tabulate("service.func_ref = Callable(self, \"new_" + f.name + "\")\n", nesting)
-		elif f.field_type == Analysis.FIELD_TYPE.MAP:
-			text += tabulate("service.func_ref = Callable(self, \"add_empty_" + f.name + "\")\n", nesting)
-		text += tabulate("data[" + field_name + ".tag] = service\n", nesting)
+			var array_type := "[%s]" % type_name if type_name else ""
+			builder.append(tabulate("var %s: Array%s = []\n" % [default_var_name, array_type], nesting))
 		
-		return text
-	
-	func generate_group_clear(field_index : int, nesting : int) -> String:
-		for g in group_table:
-			var text : String = ""
-			var find : bool = false
-			if g.parent_class_id == field_table[field_index].parent_class_id:
-				for i in g.field_indexes:
-					if field_index == i:
-						find = true
-						text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.FILLED\n", nesting)
-					else:
-						text += tabulate("__" + field_table[i].name + ".value = " + default_dict_text() + "[" + generate_field_type(field_table[i]) + "]\n", nesting)
-						text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
-			if find:
-				return text
-		return ""
-	
-	func generate_has_oneof(field_index : int, nesting : int) -> String:
-		for g in group_table:
-			var text : String = ""
-			if g.parent_class_id == field_table[field_index].parent_class_id:
-				for i in g.field_indexes:
-					if field_index == i:
-						text += tabulate("func has_" + field_table[i].name + "() -> bool:\n", nesting)
-						nesting += 1
-						text += tabulate("return data[" + field_table[i].tag + "].state == PB_SERVICE_STATE.FILLED\n", nesting)
-						return text
-		return ""
-	
-	func generate_field(field_index : int, nesting : int) -> String:
-		var text : String = ""
-		var f : Analysis.ASTField = field_table[field_index]
-		var varname : String = "__" + f.name
-		text += tabulate("var " + varname + ": PBField\n", nesting)
-		if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			var the_class_name : String = class_table[f.type_class_id].parent_name + "." + class_table[f.type_class_id].name
-			the_class_name = the_class_name.substr(1, the_class_name.length() - 1)
-			if f.qualificator != Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-				text += generate_has_oneof(field_index, nesting)
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				text += tabulate("func get_" + f.name + "() -> Array[" + the_class_name + "]:\n", nesting)
-			else:
-				if f.qualificator == Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-					text += tabulate("func has_" + f.name + "() -> bool:\n", nesting)
-					nesting += 1
-					text += tabulate("if " + varname + ".value != null:\n", nesting)
-					nesting += 1
-					text += tabulate("return true\n", nesting)
-					nesting -= 1
-					text += tabulate("return false\n", nesting)
-					nesting -= 1
-				text += tabulate("func get_" + f.name + "() -> " + the_class_name + ":\n", nesting)
-			nesting += 1
-			text += tabulate("return " + varname + ".value\n", nesting)
-			nesting -= 1
-			text += tabulate("func clear_" + f.name + "() -> void:\n", nesting)
-			nesting += 1
-			text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				text += tabulate(varname + ".value.clear()\n", nesting)
-				nesting -= 1
-				text += tabulate("func add_" + f.name + "() -> " + the_class_name + ":\n", nesting)
-				nesting += 1
-				text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
-				text += tabulate(varname + ".value.append(element)\n", nesting)
-				text += tabulate("return element\n", nesting)
-			else:
-				text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
-				nesting -= 1
-				text += tabulate("func new_" + f.name + "() -> " + the_class_name + ":\n", nesting)
-				nesting += 1
-				text += generate_group_clear(field_index, nesting)
-				text += tabulate(varname + ".value = " + the_class_name + ".new()\n", nesting)
-				text += tabulate("return " + varname + ".value\n", nesting)
-		elif f.field_type == Analysis.FIELD_TYPE.MAP:
-			var the_parent_class_name : String = class_table[f.type_class_id].parent_name
-			the_parent_class_name = the_parent_class_name.substr(1, the_parent_class_name.length() - 1)
-			var the_class_name : String = the_parent_class_name + "." + class_table[f.type_class_id].name
-
-			text += generate_has_oneof(field_index, nesting)
-			text += tabulate("func get_raw_" + f.name + "():\n", nesting)
-			nesting += 1
-			text += tabulate("return " + varname + ".value\n", nesting)
-			nesting -= 1
-			text += tabulate("func get_" + f.name + "():\n", nesting)
-			nesting += 1
-			text += tabulate("return PBPacker.construct_map(" + varname + ".value)\n", nesting)
-			nesting -= 1
-			text += tabulate("func clear_" + f.name + "():\n", nesting)
-			nesting += 1
-			text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
-			text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
-			nesting -= 1
-			for i in range(field_table.size()):
-				if field_table[i].parent_class_id == f.type_class_id && field_table[i].name == "value":
-					var gd_type : String = generate_gdscript_simple_type(field_table[i])
-					var return_type : String = " -> " + the_class_name
-					var value_return_type : String = ""
-					if gd_type != "":
-						value_return_type = return_type
-					elif field_table[i].field_type == Analysis.FIELD_TYPE.MESSAGE:
-						value_return_type = " -> " + the_parent_class_name + "." + field_table[i].type_name
-					text += tabulate("func add_empty_" + f.name + "()" + return_type + ":\n", nesting)
-					nesting += 1
-					text += generate_group_clear(field_index, nesting)
-					text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
-					text += tabulate(varname + ".value.append(element)\n", nesting)
-					text += tabulate("return element\n", nesting)
-					nesting -= 1
-					if field_table[i].field_type == Analysis.FIELD_TYPE.MESSAGE:
-						text += tabulate("func add_" + f.name + "(a_key)" + value_return_type + ":\n", nesting)
-						nesting += 1
-						text += generate_group_clear(field_index, nesting)
-						text += tabulate("var idx = -1\n", nesting)
-						text += tabulate("for i in range(" + varname + ".value.size()):\n", nesting)
-						nesting += 1
-						text += tabulate("if " + varname + ".value[i].get_key() == a_key:\n", nesting)
-						nesting += 1
-						text += tabulate("idx = i\n", nesting)
-						text += tabulate("break\n", nesting)
-						nesting -= 2
-						text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
-						text += tabulate("element.set_key(a_key)\n", nesting)
-						text += tabulate("if idx != -1:\n", nesting)
-						nesting += 1
-						text += tabulate(varname + ".value[idx] = element\n", nesting)
-						nesting -= 1
-						text += tabulate("else:\n", nesting)
-						nesting += 1
-						text += tabulate(varname + ".value.append(element)\n", nesting)
-						nesting -= 1
-						text += tabulate("return element.new_value()\n", nesting)
-					else:
-						text += tabulate("func add_" + f.name + "(a_key, a_value) -> void:\n", nesting)
-						nesting += 1
-						text += generate_group_clear(field_index, nesting)
-						text += tabulate("var idx = -1\n", nesting)
-						text += tabulate("for i in range(" + varname + ".value.size()):\n", nesting)
-						nesting += 1
-						text += tabulate("if " + varname + ".value[i].get_key() == a_key:\n", nesting)
-						nesting += 1
-						text += tabulate("idx = i\n", nesting)
-						text += tabulate("break\n", nesting)
-						nesting -= 2
-						text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
-						text += tabulate("element.set_key(a_key)\n", nesting)
-						text += tabulate("element.set_value(a_value)\n", nesting)
-						text += tabulate("if idx != -1:\n", nesting)
-						nesting += 1
-						text += tabulate(varname + ".value[idx] = element\n", nesting)
-						nesting -= 1
-						text += tabulate("else:\n", nesting)
-						nesting += 1
-						text += tabulate(varname + ".value.append(element)\n", nesting)
-						nesting -= 1
-					break
+		# Build PBField constructor
+		var pbfield_args := PackedStringArray([
+			"\"%s\"" % f.name,
+			generate_field_type(f),
+			generate_field_rule(f),
+			str(f.tag),
+			"true" if f.option == Analysis.FIELD_OPTION.PACKED else "false"
+		])
+		
+		# Add default value
+		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+			pbfield_args.append(default_var_name)
 		else:
-			var gd_type : String = generate_gdscript_simple_type(f)
-			var return_type : String = ""
-			var argument_type : String = ""
-			if gd_type != "":
-				return_type = " -> " + gd_type
-				argument_type = " : " + gd_type
-			text += generate_has_oneof(field_index, nesting)
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				var array_type := "[" + gd_type + "]" if gd_type else ""
-				text += tabulate("func get_" + f.name + "() -> Array" + array_type + ":\n", nesting)
-			else:
-				if f.qualificator == Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-					text += tabulate("func has_" + f.name + "() -> bool:\n", nesting)
-					nesting += 1
-					text += tabulate("if " + varname + ".value != null:\n", nesting)
-					nesting += 1
-					text += tabulate("return true\n", nesting)
-					nesting -= 1
-					text += tabulate("return false\n", nesting)
-					nesting -= 1
-				text += tabulate("func get_" + f.name + "()" + return_type + ":\n", nesting)
-			nesting += 1
-			text += tabulate("return " + varname + ".value\n", nesting)
-			nesting -= 1
-			text += tabulate("func clear_" + f.name + "() -> void:\n", nesting)
-			nesting += 1
-			text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				text += tabulate(varname + ".value.clear()\n", nesting)
-				nesting -= 1
-				text += tabulate("func add_" + f.name + "(value" + argument_type + ") -> void:\n", nesting)
-				nesting += 1
-				text += tabulate(varname + ".value.append(value)\n", nesting)
-			else:
-				text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
-				nesting -= 1
-				text += tabulate("func set_" + f.name + "(value" + argument_type + ") -> void:\n", nesting)
-				nesting += 1
-				text += generate_group_clear(field_index, nesting)
-				text += tabulate(varname + ".value = value\n", nesting)
-		return text
+			pbfield_args.append("%s[%s]" % [default_dict_text(), generate_field_type(f)])
+		
+		builder.append(tabulate("var %s: PBField = PBField.new(%s)\n" % [field_name, ", ".join(pbfield_args)], nesting))
+		
+		# Set map field flag if needed
+		if f.is_map_field:
+			builder.append(tabulate("%s.is_map_field = true\n" % field_name, nesting))
+		
+		# Set up service field
+		builder.append(tabulate("service = PBServiceField.new()\n", nesting))
+		builder.append(tabulate("service.field = %s\n" % field_name, nesting))
+		
+		# Set function reference based on field type
+		match f.field_type:
+			Analysis.FIELD_TYPE.MESSAGE:
+				var func_name := "add_%s" % f.name if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else "new_%s" % f.name
+				builder.append(tabulate("service.func_ref = Callable(self, \"%s\")\n" % func_name, nesting))
+			Analysis.FIELD_TYPE.MAP:
+				builder.append(tabulate("service.func_ref = Callable(self, \"add_empty_%s\")\n" % f.name, nesting))
+		
+		# Add service to data dictionary
+		builder.append(tabulate("data[%s.tag] = service\n" % field_name, nesting))
+		
+		return "".join(builder)
 
-	func generate_class(class_index : int, nesting : int) -> String:
-		var text : String = ""
-		if class_table[class_index].type == Analysis.CLASS_TYPE.MESSAGE || class_table[class_index].type == Analysis.CLASS_TYPE.MAP:
-			var cls_pref : String = ""
-			cls_pref += tabulate("class " + class_table[class_index].name + ":\n", nesting)
-			nesting += 1
-			cls_pref += tabulate("func _init():\n", nesting)
-			text += cls_pref
-			nesting += 1
-			text += tabulate("var service\n", nesting)
-			text += tabulate("\n", nesting)
-			var field_text : String = ""
-			for i in range(field_table.size()):
-				if field_table[i].parent_class_id == class_index:
-					text += generate_field_constructor(i, nesting)
-					text += tabulate("\n", nesting)
-					field_text += generate_field(i, nesting - 1)
-					field_text += tabulate("\n", nesting - 1)
-			nesting -= 1
-			text += tabulate("var data = {}\n", nesting)
-			text += tabulate("\n", nesting)
-			text += field_text
-			for j in range(class_table.size()):
-				if class_table[j].parent_index == class_index:
-					var cl_text = generate_class(j, nesting)
-					text += cl_text
-					if class_table[j].type == Analysis.CLASS_TYPE.MESSAGE || class_table[j].type == Analysis.CLASS_TYPE.MAP:
-						text += generate_class_services(nesting + 1)
-						text += tabulate("\n", nesting + 1)
-		elif class_table[class_index].type == Analysis.CLASS_TYPE.ENUM:
-			text += tabulate("enum " + class_table[class_index].name + " {\n", nesting)
-			nesting += 1
+	# func generate_field_constructor(field_index: int, nesting: int) -> String:
+	# 	var text: String = ""
+	# 	var f: Analysis.ASTField = field_table[field_index]
+	# 	var field_name: String = "__" + f.name
+	# 	var pbfield_text: String
+	# 	var default_var_name := field_name + "_default"
+	# 	if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 		var type_name := generate_gdscript_type(f)
+	# 		if type_name:
+	# 			text = tabulate("var %s: Array[%s] = []\n" % [default_var_name, type_name], nesting)
+	# 		else:
+	# 			text = tabulate("var %s: Array = []\n" % [default_var_name], nesting)
+	# 	pbfield_text += field_name + " = PBField.new("
+	# 	pbfield_text += "\"" + f.name + "\", "
+	# 	pbfield_text += generate_field_type(f) + ", "
+	# 	pbfield_text += generate_field_rule(f) + ", "
+	# 	pbfield_text += str(f.tag) + ", "
+	# 	if f.option == Analysis.FIELD_OPTION.PACKED:
+	# 		pbfield_text += "true"
+	# 	elif f.option == Analysis.FIELD_OPTION.NOT_PACKED:
+	# 		pbfield_text += "false"
+	# 	if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 		pbfield_text += ", " + default_var_name
+	# 	else:
+	# 		pbfield_text += ", " + default_dict_text() + "[" + generate_field_type(f) + "]"
+	# 	pbfield_text += ")\n"
+	# 	text += tabulate(pbfield_text, nesting)
+	# 	if f.is_map_field:
+	# 		text += tabulate(field_name + ".is_map_field = true\n", nesting)
+	# 	text += tabulate("service = PBServiceField.new()\n", nesting)
+	# 	text += tabulate("service.field = " + field_name + "\n", nesting)
+	# 	if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
+	# 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 			text += tabulate("service.func_ref = Callable(self, \"add_" + f.name + "\")\n", nesting)
+	# 		else:
+	# 			text += tabulate("service.func_ref = Callable(self, \"new_" + f.name + "\")\n", nesting)
+	# 	elif f.field_type == Analysis.FIELD_TYPE.MAP:
+	# 		text += tabulate("service.func_ref = Callable(self, \"add_empty_" + f.name + "\")\n", nesting)
+	# 	text += tabulate("data[" + field_name + ".tag] = service\n", nesting)
+		
+	# 	return text
+	
+	func generate_group_clear(field_index: int, nesting: int) -> String:
+		var field = field_table[field_index]
+		var builder := PackedStringArray()
+		
+		for g in group_table:
+			if g.parent_class_id != field.parent_class_id:
+				continue
+				
+			if field_index in g.field_indexes:
+				# Found our group - process all fields in it
+				for i in g.field_indexes:
+					var current_field = field_table[i]
+					if i == field_index:
+						builder.append(tabulate("data[%d].state = PB_SERVICE_STATE.FILLED\n" % current_field.tag, nesting))
+					else:
+						builder.append(tabulate("__%s.value = %s[%s]\n" % [
+							current_field.name,
+							default_dict_text(),
+							generate_field_type(current_field)
+						], nesting))
+						builder.append(tabulate("data[%d].state = PB_SERVICE_STATE.UNFILLED\n" % current_field.tag, nesting))
+				return "".join(builder)
+		
+		return ""
 
-			var expected_prefix = class_table[class_index].name.to_snake_case().to_upper() + "_"
-			var all_have_prefix = true
-			for en in range(class_table[class_index].values.size()):
-				var value_name = class_table[class_index].values[en].name
-				all_have_prefix = all_have_prefix and value_name.begins_with(expected_prefix) and value_name != expected_prefix
+	# func generate_group_clear(field_index: int, nesting: int) -> String:
+	# 	for g in group_table:
+	# 		var text: String = ""
+	# 		var find: bool = false
+	# 		if g.parent_class_id == field_table[field_index].parent_class_id:
+	# 			for i in g.field_indexes:
+	# 				if field_index == i:
+	# 					find = true
+	# 					text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.FILLED\n", nesting)
+	# 				else:
+	# 					text += tabulate("__" + field_table[i].name + ".value = " + default_dict_text() + "[" + generate_field_type(field_table[i]) + "]\n", nesting)
+	# 					text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
+	# 		if find:
+	# 			return text
+	# 	return ""
+	
+	# func generate_has_oneof(field_index: int, nesting: int) -> String:
+	# 	for g in group_table:
+	# 		var text: String = ""
+	# 		if g.parent_class_id == field_table[field_index].parent_class_id:
+	# 			for i in g.field_indexes:
+	# 				if field_index == i:
+	# 					text += tabulate("func has_" + field_table[i].name + "() -> bool:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate("return data[" + field_table[i].tag + "].state == PB_SERVICE_STATE.FILLED\n", nesting)
+	# 					return text
+	# 	return ""
 
-			for en in range(class_table[class_index].values.size()):
-				var value_name = class_table[class_index].values[en].name
-				if all_have_prefix:
-					value_name = value_name.substr(expected_prefix.length())
-				var enum_val = value_name + " = " + class_table[class_index].values[en].value
-				if en == class_table[class_index].values.size() - 1:
-					text += tabulate(enum_val + "\n", nesting)
+	func generate_has_oneof(field_index: int, nesting: int) -> String:
+		var field = field_table[field_index]
+		
+		for g in group_table:
+			if g.parent_class_id != field.parent_class_id:
+				continue
+				
+			if field_index in g.field_indexes:
+				var builder := PackedStringArray()
+				builder.append(tabulate("func has_%s() -> bool:\n" % field.name, nesting))
+				builder.append(tabulate("return data[%d].state == PB_SERVICE_STATE.FILLED\n" % field.tag, nesting + 1))
+				return "".join(builder)
+		
+		return ""
+
+	func generate_field(field_index: int, nesting: int) -> String:
+		var builder := PackedStringArray()
+		var f = field_table[field_index]
+		var varname: String = "__" + f.name
+		
+		# Common field declaration
+		builder.append(tabulate("var %s: PBField\n" % varname, nesting))
+		
+		match f.field_type:
+			Analysis.FIELD_TYPE.MESSAGE:
+				var class_path: String = class_table[f.type_class_id].parent_name + "." + class_table[f.type_class_id].name
+				var msg_class_name: String = class_path.substr(1) # Remove leading dot
+				
+				# Generate has_oneof if needed
+				if f.qualificator != Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+					builder.append(generate_has_oneof(field_index, nesting))
+				
+				# Getter function
+				var getter_return := "Array[%s]" % msg_class_name if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else msg_class_name
+				builder.append(tabulate("func get_%s() -> %s:\n" % [f.name, getter_return], nesting))
+				builder.append(tabulate("return %s.value\n" % varname, nesting + 1))
+				
+				# Clear function
+				builder.append(tabulate("func clear_%s() -> void:\n" % f.name, nesting))
+				builder.append(tabulate("data[%d].state = PB_SERVICE_STATE.UNFILLED\n" % f.tag, nesting + 1))
+				
+				if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+					builder.append(tabulate("%s.value.clear()\n" % varname, nesting + 1))
+					
+					# Add function for repeated fields
+					builder.append(tabulate("func add_%s() -> %s:\n" % [f.name, msg_class_name], nesting))
+					builder.append(tabulate("var element = %s.new()\n" % msg_class_name, nesting + 1))
+					builder.append(tabulate("%s.value.append(element)\n" % varname, nesting + 1))
+					builder.append(tabulate("return element\n", nesting + 1))
 				else:
-					text += tabulate(enum_val + ",\n", nesting)
-			nesting -= 1
-			text += tabulate("}\n", nesting)
-			text += tabulate("\n", nesting)
+					builder.append(tabulate("%s.value = %s[%s]\n" % [varname, default_dict_text(), generate_field_type(f)], nesting + 1))
+					
+					# New/set functions for single fields
+					builder.append(tabulate("func new_%s() -> %s:\n" % [f.name, msg_class_name], nesting))
+					builder.append(generate_group_clear(field_index, nesting + 1))
+					builder.append(tabulate("%s.value = %s.new()\n" % [varname, msg_class_name], nesting + 1))
+					builder.append(tabulate("return %s.value\n" % varname, nesting + 1))
 			
-		return text
-	
-	func generate_class_services(nesting : int) -> String:
-		var text : String = ""
-		text += tabulate("func _to_string() -> String:\n", nesting)
-		nesting += 1
-		text += tabulate("return PBPacker.message_to_string(data)\n", nesting)
-		text += tabulate("\n", nesting)
-		nesting -= 1
-		text += tabulate("func to_bytes() -> PackedByteArray:\n", nesting)
-		nesting += 1
-		text += tabulate("return PBPacker.pack_message(data)\n", nesting)
-		text += tabulate("\n", nesting)
-		nesting -= 1
-		text += tabulate("func from_bytes(bytes : PackedByteArray, offset : int = 0, limit : int = -1) -> int:\n", nesting)
-		nesting += 1
-		text += tabulate("var cur_limit = bytes.size()\n", nesting)
-		text += tabulate("if limit != -1:\n", nesting)
-		nesting += 1
-		text += tabulate("cur_limit = limit\n", nesting)
-		nesting -= 1
-		text += tabulate("var result = PBPacker.unpack_message(data, bytes, offset, cur_limit)\n", nesting)
-		text += tabulate("if result == cur_limit:\n", nesting)
-		nesting += 1
-		text += tabulate("if PBPacker.check_required(data):\n", nesting)
-		nesting += 1
-		text += tabulate("if limit == -1:\n", nesting)
-		nesting += 1
-		text += tabulate("return PB_ERR.NO_ERRORS\n", nesting)
-		nesting -= 2
-		text += tabulate("else:\n", nesting)
-		nesting += 1
-		text += tabulate("return PB_ERR.REQUIRED_FIELDS\n", nesting)
-		nesting -= 2
-		text += tabulate("elif limit == -1 && result > 0:\n", nesting)
-		nesting += 1
-		text += tabulate("return PB_ERR.PARSE_INCOMPLETE\n", nesting)
-		nesting -= 1
-		text += tabulate("return result\n", nesting)
-		return text
-	
-	func translate(file_name : String, core_file_name : String) -> bool:
+			Analysis.FIELD_TYPE.MAP:
+				var parent_path: String = class_table[f.type_class_id].parent_name.substr(1) # Remove leading dot
+				var map_class_name: String = parent_path + "." + class_table[f.type_class_id].name
+				
+				builder.append(generate_has_oneof(field_index, nesting))
+				
+				# Raw getter
+				builder.append(tabulate("func get_raw_%s():\n" % f.name, nesting))
+				builder.append(tabulate("return %s.value\n" % varname, nesting + 1))
+				
+				# Packed getter
+				builder.append(tabulate("func get_%s():\n" % f.name, nesting))
+				builder.append(tabulate("return PBPacker.construct_map(%s.value)\n" % varname, nesting + 1))
+				
+				# Clear function
+				builder.append(tabulate("func clear_%s():\n" % f.name, nesting))
+				builder.append(tabulate("data[%d].state = PB_SERVICE_STATE.UNFILLED\n" % f.tag, nesting + 1))
+				builder.append(tabulate("%s.value = %s[%s]\n" % [varname, default_dict_text(), generate_field_type(f)], nesting + 1))
+				
+				# Find value field for map
+				for i in field_table.size():
+					if field_table[i].parent_class_id == f.type_class_id and field_table[i].name == "value":
+						var value_field = field_table[i]
+						var gd_type := generate_gdscript_simple_type(value_field)
+						var return_type := " -> %s" % map_class_name if gd_type.is_empty() else " -> %s" % gd_type
+						
+						# Empty element adder
+						builder.append(tabulate("func add_empty_%s()%s:\n" % [f.name, return_type], nesting))
+						builder.append(generate_group_clear(field_index, nesting + 1))
+						builder.append(tabulate("var element = %s.new()\n" % map_class_name, nesting + 1))
+						builder.append(tabulate("%s.value.append(element)\n" % varname, nesting + 1))
+						builder.append(tabulate("return element\n", nesting + 1))
+						
+						if value_field.field_type == Analysis.FIELD_TYPE.MESSAGE:
+							var value_class_name: String = parent_path + "." + value_field.type_name
+							builder.append(tabulate("func add_%s(a_key)%s:\n" % [f.name, " -> " + value_class_name], nesting))
+							builder.append(generate_group_clear(field_index, nesting + 1))
+							builder.append(tabulate("var idx = -1\n", nesting + 1))
+							builder.append(tabulate("for i in range(%s.value.size()):\n" % varname, nesting + 1))
+							builder.append(tabulate("    if %s.value[i].get_key() == a_key:\n" % varname, nesting + 2))
+							builder.append(tabulate("        idx = i\n", nesting + 3))
+							builder.append(tabulate("        break\n", nesting + 2))
+							builder.append(tabulate("var element = %s.new()\n" % map_class_name, nesting + 1))
+							builder.append(tabulate("element.set_key(a_key)\n", nesting + 1))
+							builder.append(tabulate("if idx != -1:\n", nesting + 1))
+							builder.append(tabulate("    %s.value[idx] = element\n" % varname, nesting + 2))
+							builder.append(tabulate("else:\n", nesting + 1))
+							builder.append(tabulate("    %s.value.append(element)\n" % varname, nesting + 2))
+							builder.append(tabulate("return element.new_value()\n", nesting + 1))
+						else:
+							builder.append(tabulate("func add_%s(a_key, a_value) -> void:\n" % f.name, nesting))
+							builder.append(generate_group_clear(field_index, nesting + 1))
+							builder.append(tabulate("var idx = -1\n", nesting + 1))
+							builder.append(tabulate("for i in range(%s.value.size()):\n" % varname, nesting + 1))
+							builder.append(tabulate("    if %s.value[i].get_key() == a_key:\n" % varname, nesting + 2))
+							builder.append(tabulate("        idx = i\n", nesting + 3))
+							builder.append(tabulate("        break\n", nesting + 2))
+							builder.append(tabulate("var element = %s.new()\n" % map_class_name, nesting + 1))
+							builder.append(tabulate("element.set_key(a_key)\n", nesting + 1))
+							builder.append(tabulate("element.set_value(a_value)\n", nesting + 1))
+							builder.append(tabulate("if idx != -1:\n", nesting + 1))
+							builder.append(tabulate("    %s.value[idx] = element\n" % varname, nesting + 2))
+							builder.append(tabulate("else:\n", nesting + 1))
+							builder.append(tabulate("    %s.value.append(element)\n" % varname, nesting + 2))
+						break
+			
+			_: # Simple types
+				var gd_type := generate_gdscript_simple_type(f)
+				var type_suffix := " -> %s" % gd_type if not gd_type.is_empty() else ""
+				var arg_suffix := " : %s" % gd_type if not gd_type.is_empty() else ""
+				
+				builder.append(generate_has_oneof(field_index, nesting))
+				
+				# Getter function
+				if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+					var array_type := "[%s]" % gd_type if gd_type else ""
+					builder.append(tabulate("func get_%s() -> Array%s:\n" % [f.name, array_type], nesting))
+				else:
+					builder.append(tabulate("func get_%s()%s:\n" % [f.name, type_suffix], nesting))
+				builder.append(tabulate("return %s.value\n" % varname, nesting + 1))
+				
+				# Clear function
+				builder.append(tabulate("func clear_%s() -> void:\n" % f.name, nesting))
+				builder.append(tabulate("data[%d].state = PB_SERVICE_STATE.UNFILLED\n" % f.tag, nesting + 1))
+				
+				if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+					builder.append(tabulate("%s.value.clear()\n" % varname, nesting + 1))
+					
+					# Add function for repeated fields
+					builder.append(tabulate("func add_%s(value%s) -> void:\n" % [f.name, arg_suffix], nesting))
+					builder.append(tabulate("%s.value.append(value)\n" % varname, nesting + 1))
+				else:
+					builder.append(tabulate("%s.value = %s[%s]\n" % [varname, default_dict_text(), generate_field_type(f)], nesting + 1))
+					
+					# Set function for single fields
+					builder.append(tabulate("func set_%s(value%s) -> void:\n" % [f.name, arg_suffix], nesting))
+					builder.append(generate_group_clear(field_index, nesting + 1))
+					builder.append(tabulate("%s.value = value\n" % varname, nesting + 1))
+		
+		return "".join(builder)
 
-		var file : FileAccess = FileAccess.open(file_name, FileAccess.WRITE)
-		if file == null:
+	# func generate_field(field_index: int, nesting: int) -> String:
+	# 	var text: String = ""
+	# 	var f: Analysis.ASTField = field_table[field_index]
+	# 	var varname: String = "__" + f.name
+	# 	text += tabulate("var " + varname + ": PBField\n", nesting)
+	# 	if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
+	# 		var the_class_name: String = class_table[f.type_class_id].parent_name + "." + class_table[f.type_class_id].name
+	# 		the_class_name = the_class_name.substr(1, the_class_name.length() - 1)
+	# 		if f.qualificator != Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+	# 			text += generate_has_oneof(field_index, nesting)
+	# 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 			text += tabulate("func get_" + f.name + "() -> Array[" + the_class_name + "]:\n", nesting)
+	# 		else:
+	# 			# if f.qualificator == Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+	# 			# 	text += tabulate("func has_" + f.name + "() -> bool:\n", nesting)
+	# 			# 	nesting += 1
+	# 			# 	text += tabulate("if " + varname + ".value != null:\n", nesting)
+	# 			# 	nesting += 1
+	# 			# 	text += tabulate("return true\n", nesting)
+	# 			# 	nesting -= 1
+	# 			# 	text += tabulate("return false\n", nesting)
+	# 			# 	nesting -= 1
+	# 			text += tabulate("func get_" + f.name + "() -> " + the_class_name + ":\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("return " + varname + ".value\n", nesting)
+	# 		nesting -= 1
+	# 		text += tabulate("func clear_" + f.name + "() -> void:\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
+	# 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 			text += tabulate(varname + ".value.clear()\n", nesting)
+	# 			nesting -= 1
+	# 			text += tabulate("func add_" + f.name + "() -> " + the_class_name + ":\n", nesting)
+	# 			nesting += 1
+	# 			text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
+	# 			text += tabulate(varname + ".value.append(element)\n", nesting)
+	# 			text += tabulate("return element\n", nesting)
+	# 		else:
+	# 			text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
+	# 			nesting -= 1
+	# 			text += tabulate("func new_" + f.name + "() -> " + the_class_name + ":\n", nesting)
+	# 			nesting += 1
+	# 			text += generate_group_clear(field_index, nesting)
+	# 			text += tabulate(varname + ".value = " + the_class_name + ".new()\n", nesting)
+	# 			text += tabulate("return " + varname + ".value\n", nesting)
+	# 	elif f.field_type == Analysis.FIELD_TYPE.MAP:
+	# 		var the_parent_class_name: String = class_table[f.type_class_id].parent_name
+	# 		the_parent_class_name = the_parent_class_name.substr(1, the_parent_class_name.length() - 1)
+	# 		var the_class_name: String = the_parent_class_name + "." + class_table[f.type_class_id].name
+
+	# 		text += generate_has_oneof(field_index, nesting)
+	# 		text += tabulate("func get_raw_" + f.name + "():\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("return " + varname + ".value\n", nesting)
+	# 		nesting -= 1
+	# 		text += tabulate("func get_" + f.name + "():\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("return PBPacker.construct_map(" + varname + ".value)\n", nesting)
+	# 		nesting -= 1
+	# 		text += tabulate("func clear_" + f.name + "():\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
+	# 		text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
+	# 		nesting -= 1
+	# 		for i in range(field_table.size()):
+	# 			if field_table[i].parent_class_id == f.type_class_id && field_table[i].name == "value":
+	# 				var gd_type: String = generate_gdscript_simple_type(field_table[i])
+	# 				var return_type: String = " -> " + the_class_name
+	# 				var value_return_type: String = ""
+	# 				if !gd_type.is_empty():
+	# 					value_return_type = return_type
+	# 				elif field_table[i].field_type == Analysis.FIELD_TYPE.MESSAGE:
+	# 					value_return_type = " -> " + the_parent_class_name + "." + field_table[i].type_name
+	# 				text += tabulate("func add_empty_" + f.name + "()" + return_type + ":\n", nesting)
+	# 				nesting += 1
+	# 				text += generate_group_clear(field_index, nesting)
+	# 				text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
+	# 				text += tabulate(varname + ".value.append(element)\n", nesting)
+	# 				text += tabulate("return element\n", nesting)
+	# 				nesting -= 1
+	# 				if field_table[i].field_type == Analysis.FIELD_TYPE.MESSAGE:
+	# 					text += tabulate("func add_" + f.name + "(a_key)" + value_return_type + ":\n", nesting)
+	# 					nesting += 1
+	# 					text += generate_group_clear(field_index, nesting)
+	# 					text += tabulate("var idx = -1\n", nesting)
+	# 					text += tabulate("for i in range(" + varname + ".value.size()):\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate("if " + varname + ".value[i].get_key() == a_key:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate("idx = i\n", nesting)
+	# 					text += tabulate("break\n", nesting)
+	# 					nesting -= 2
+	# 					text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
+	# 					text += tabulate("element.set_key(a_key)\n", nesting)
+	# 					text += tabulate("if idx != -1:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate(varname + ".value[idx] = element\n", nesting)
+	# 					nesting -= 1
+	# 					text += tabulate("else:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate(varname + ".value.append(element)\n", nesting)
+	# 					nesting -= 1
+	# 					text += tabulate("return element.new_value()\n", nesting)
+	# 				else:
+	# 					text += tabulate("func add_" + f.name + "(a_key, a_value) -> void:\n", nesting)
+	# 					nesting += 1
+	# 					text += generate_group_clear(field_index, nesting)
+	# 					text += tabulate("var idx = -1\n", nesting)
+	# 					text += tabulate("for i in range(" + varname + ".value.size()):\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate("if " + varname + ".value[i].get_key() == a_key:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate("idx = i\n", nesting)
+	# 					text += tabulate("break\n", nesting)
+	# 					nesting -= 2
+	# 					text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
+	# 					text += tabulate("element.set_key(a_key)\n", nesting)
+	# 					text += tabulate("element.set_value(a_value)\n", nesting)
+	# 					text += tabulate("if idx != -1:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate(varname + ".value[idx] = element\n", nesting)
+	# 					nesting -= 1
+	# 					text += tabulate("else:\n", nesting)
+	# 					nesting += 1
+	# 					text += tabulate(varname + ".value.append(element)\n", nesting)
+	# 					nesting -= 1
+	# 				break
+	# 	else:
+	# 		var gd_type: String = generate_gdscript_simple_type(f)
+	# 		var return_type: String = ""
+	# 		var argument_type: String = ""
+	# 		if !gd_type.is_empty():
+	# 			return_type = " -> " + gd_type
+	# 			argument_type = " : " + gd_type
+	# 		text += generate_has_oneof(field_index, nesting)
+	# 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 			var array_type := "[" + gd_type + "]" if gd_type else ""
+	# 			text += tabulate("func get_" + f.name + "() -> Array" + array_type + ":\n", nesting)
+	# 		else:
+	# 			# if f.qualificator == Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+	# 			# 	text += tabulate("func has_" + f.name + "() -> bool:\n", nesting)
+	# 			# 	nesting += 1
+	# 			# 	text += tabulate("if " + varname + ".value != null:\n", nesting)
+	# 			# 	nesting += 1
+	# 			# 	text += tabulate("return true\n", nesting)
+	# 			# 	nesting -= 1
+	# 			# 	text += tabulate("return false\n", nesting)
+	# 			# 	nesting -= 1
+	# 			text += tabulate("func get_" + f.name + "()" + return_type + ":\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("return " + varname + ".value\n", nesting)
+	# 		nesting -= 1
+	# 		text += tabulate("func clear_" + f.name + "() -> void:\n", nesting)
+	# 		nesting += 1
+	# 		text += tabulate("data[" + str(f.tag) + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
+	# 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+	# 			text += tabulate(varname + ".value.clear()\n", nesting)
+	# 			nesting -= 1
+	# 			text += tabulate("func add_" + f.name + "(value" + argument_type + ") -> void:\n", nesting)
+	# 			nesting += 1
+	# 			text += tabulate(varname + ".value.append(value)\n", nesting)
+	# 		else:
+	# 			text += tabulate(varname + ".value = " + default_dict_text() + "[" + generate_field_type(f) + "]\n", nesting)
+	# 			nesting -= 1
+	# 			text += tabulate("func set_" + f.name + "(value" + argument_type + ") -> void:\n", nesting)
+	# 			nesting += 1
+	# 			text += generate_group_clear(field_index, nesting)
+	# 			text += tabulate(varname + ".value = value\n", nesting)
+	# 	return text
+
+	# func generate_class(class_index: int, nesting: int) -> String:
+	# 	var text: String = ""
+	# 	if class_table[class_index].type == Analysis.CLASS_TYPE.MESSAGE || class_table[class_index].type == Analysis.CLASS_TYPE.MAP:
+	# 		var cls_pref: String = ""
+	# 		cls_pref += tabulate("class " + class_table[class_index].name + ":\n", nesting)
+	# 		nesting += 1
+	# 		cls_pref += tabulate("func _init():\n", nesting)
+	# 		text += cls_pref
+	# 		nesting += 1
+	# 		text += tabulate("var service\n", nesting)
+	# 		text += tabulate("\n", nesting)
+	# 		var field_text: String = ""
+	# 		for i in range(field_table.size()):
+	# 			if field_table[i].parent_class_id == class_index:
+	# 				text += generate_field_constructor(i, nesting)
+	# 				text += tabulate("\n", nesting)
+	# 				field_text += generate_field(i, nesting - 1)
+	# 				field_text += tabulate("\n", nesting - 1)
+	# 		nesting -= 1
+	# 		text += tabulate("var data = {}\n", nesting)
+	# 		text += tabulate("\n", nesting)
+	# 		text += field_text
+	# 		for j in range(class_table.size()):
+	# 			if class_table[j].parent_index == class_index:
+	# 				var cl_text = generate_class(j, nesting)
+	# 				text += cl_text
+	# 				if class_table[j].type == Analysis.CLASS_TYPE.MESSAGE || class_table[j].type == Analysis.CLASS_TYPE.MAP:
+	# 					text += generate_class_services(nesting + 1)
+	# 					text += tabulate("\n", nesting + 1)
+	# 	elif class_table[class_index].type == Analysis.CLASS_TYPE.ENUM:
+	# 		text += tabulate("enum " + class_table[class_index].name + " {\n", nesting)
+	# 		nesting += 1
+
+	# 		var expected_prefix = class_table[class_index].name.to_snake_case().to_upper() + "_"
+	# 		var all_have_prefix = true
+	# 		for en in range(class_table[class_index].values.size()):
+	# 			var value_name = class_table[class_index].values[en].name
+	# 			all_have_prefix = all_have_prefix and value_name.begins_with(expected_prefix) and value_name != expected_prefix
+
+	# 		for en in range(class_table[class_index].values.size()):
+	# 			var value_name = class_table[class_index].values[en].name
+	# 			if all_have_prefix:
+	# 				value_name = value_name.substr(expected_prefix.length())
+	# 			var enum_val = value_name + " = " + class_table[class_index].values[en].value
+	# 			if en == class_table[class_index].values.size() - 1:
+	# 				text += tabulate(enum_val + "\n", nesting)
+	# 			else:
+	# 				text += tabulate(enum_val + ",\n", nesting)
+	# 		nesting -= 1
+	# 		text += tabulate("}\n", nesting)
+	# 		text += tabulate("\n", nesting)
+			
+	# 	return text
+	func generate_class(class_index: int, nesting: int) -> String:
+		var builder := PackedStringArray()
+		var cls = class_table[class_index]
+		
+		match cls.type:
+			Analysis.CLASS_TYPE.MESSAGE, Analysis.CLASS_TYPE.MAP:
+				# Class declaration and init
+				builder.append(tabulate("class %s:\n" % cls.name, nesting))
+				builder.append(tabulate("func _init():\n", nesting + 1))
+				builder.append(tabulate("var service\n\n", nesting + 2))
+				
+				# Process fields
+				var field_builder := PackedStringArray()
+				for i in field_table.size():
+					if field_table[i].parent_class_id == class_index:
+						builder.append(generate_field_constructor(i, nesting + 2))
+						builder.append("\n")
+						field_builder.append(generate_field(i, nesting - 1))
+						field_builder.append("\n")
+				
+				# Add data dictionary
+				builder.append(tabulate("var data = {}\n", nesting + 1))
+				builder.append_array(field_builder)
+				
+				# Process nested classes
+				for j in class_table.size():
+					if class_table[j].parent_index == class_index:
+						builder.append(generate_class(j, nesting + 1))
+						if class_table[j].type in [Analysis.CLASS_TYPE.MESSAGE, Analysis.CLASS_TYPE.MAP]:
+							builder.append(generate_class_services(nesting + 2))
+							builder.append("\n")
+			
+			Analysis.CLASS_TYPE.ENUM:
+				# Enum declaration
+				builder.append(tabulate("enum %s {\n" % cls.name, nesting))
+				
+				# Process enum values
+				var expected_prefix: String = cls.name.to_snake_case().to_upper() + "_"
+				var all_have_prefix := true
+				var enum_values := PackedStringArray()
+				
+				for en in cls.values.size():
+					var value = cls.values[en]
+					all_have_prefix = all_have_prefix and value.name.begins_with(expected_prefix) and value.name != expected_prefix
+				
+				for en in cls.values.size():
+					var value_name = cls.values[en].name
+					if all_have_prefix:
+						value_name = value_name.substr(expected_prefix.length())
+					
+					var enum_line := "%s = %s" % [value_name, cls.values[en].value]
+					if en < cls.values.size() - 1:
+						enum_line += ","
+					enum_values.append(tabulate(enum_line + "\n", nesting + 1))
+				
+				builder.append_array(enum_values)
+				builder.append(tabulate("}\n\n", nesting))
+		
+		return "".join(builder)
+	
+	# func generate_class_services(nesting: int) -> String:
+	# 	var text: String = ""
+	# 	text += tabulate("func _to_string() -> String:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("return PBPacker.message_to_string(data)\n", nesting)
+	# 	text += tabulate("\n", nesting)
+	# 	nesting -= 1
+	# 	text += tabulate("func to_bytes() -> PackedByteArray:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("return PBPacker.pack_message(data)\n", nesting)
+	# 	text += tabulate("\n", nesting)
+	# 	nesting -= 1
+	# 	text += tabulate("func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("var cur_limit:int = bytes.size()\n", nesting)
+	# 	text += tabulate("if limit != -1:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("cur_limit = limit\n", nesting)
+	# 	nesting -= 1
+	# 	text += tabulate("var result:int = PBPacker.unpack_message(data, bytes, offset, cur_limit)\n", nesting)
+	# 	text += tabulate("if result == cur_limit:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("if PBPacker.check_required(data):\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("if limit == -1:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("return PB_ERR.NO_ERRORS\n", nesting)
+	# 	nesting -= 2
+	# 	text += tabulate("else:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("return PB_ERR.REQUIRED_FIELDS\n", nesting)
+	# 	nesting -= 2
+	# 	text += tabulate("elif limit == -1 && result > 0:\n", nesting)
+	# 	nesting += 1
+	# 	text += tabulate("return PB_ERR.PARSE_INCOMPLETE\n", nesting)
+	# 	nesting -= 1
+	# 	text += tabulate("return result\n", nesting)
+	# 	return text
+	func generate_class_services(nesting: int) -> String:
+		var builder: PackedStringArray = PackedStringArray()
+		
+		# _to_string() service
+		builder.append(tabulate("func _to_string() -> String:\n", nesting))
+		builder.append(tabulate("return PBPacker.message_to_string(data)\n", nesting + 1))
+		builder.append("\n")
+		
+		# to_bytes() service
+		builder.append(tabulate("func to_bytes() -> PackedByteArray:\n", nesting))
+		builder.append(tabulate("return PBPacker.pack_message(data)\n", nesting + 1))
+		builder.append("\n")
+		
+		# from_bytes() service
+		builder.append(tabulate("func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:\n", nesting))
+		var inner_nesting: int = nesting + 1
+		builder.append(tabulate("var cur_limit: int = bytes.size()\n", inner_nesting))
+		builder.append(tabulate("if limit != -1:\n", inner_nesting))
+		builder.append(tabulate("cur_limit = limit\n", inner_nesting + 1))
+		
+		builder.append(tabulate("var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)\n", inner_nesting))
+		builder.append(tabulate("if result == cur_limit:\n", inner_nesting))
+		builder.append(tabulate("if PBPacker.check_required(data):\n", inner_nesting + 1))
+		builder.append(tabulate("return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS\n", inner_nesting + 2))
+		builder.append(tabulate("elif limit == -1 && result > 0:\n", inner_nesting))
+		builder.append(tabulate("return PB_ERR.PARSE_INCOMPLETE\n", inner_nesting + 1))
+		builder.append(tabulate("return result\n", inner_nesting))
+		
+		return "".join(builder)
+	
+	func translate(file_name: String, core_file_name: String) -> bool:
+		var file: FileAccess = FileAccess.open(file_name, FileAccess.WRITE)
+		if not file:
 			printerr("File: '", file_name, "' save error.")
 			return false
 		
@@ -2078,19 +2421,19 @@ class Translator:
 			printerr("File: '", core_file_name, "' not found.")
 			return false
 			
-		var core_file : FileAccess = FileAccess.open(core_file_name, FileAccess.READ)
-		if core_file == null:
+		var core_file: FileAccess = FileAccess.open(core_file_name, FileAccess.READ)
+		if not core_file:
 			printerr("File: '", core_file_name, "' read error.")
 			return false
-		var core_text : String = core_file.get_as_text()
+		var core_text: String = core_file.get_as_text()
 		core_file.close()
 		
-		var text : String = ""
-		var nesting : int = 0
+		var text: String = ""
+		var nesting: int = 0
 		core_text = core_text.replace(PROTO_VERSION_DEFAULT, PROTO_VERSION_CONST + str(proto_version))
 		text += core_text + "\n\n\n"
 		text += "############### USER DATA BEGIN ################\n"
-		var cls_user : String = ""
+		var cls_user: String = ""
 		for i in range(class_table.size()):
 			if class_table[i].parent_index == -1:
 				var cls_text = generate_class(i, nesting)
@@ -2112,36 +2455,35 @@ class Translator:
 	
 
 class ImportFile:
-	func _init(sha : String, a_path : String, a_parent : int):
+	func _init(sha: String, a_path: String, a_parent: int):
 		sha256 = sha
 		path = a_path
 		parent_index = a_parent
 		
-	var sha256 : String
-	var path : String
-	var parent_index : int
+	var sha256: String
+	var path: String
+	var parent_index: int
 
-func parse_all(analyzes : Dictionary, imports : Array, path : String, full_name : String, parent_index : int) -> bool:
-	
+func parse_all(analyzes: Dictionary, imports: Array, path: String, full_name: String, parent_index: int) -> bool:
 	if !FileAccess.file_exists(full_name):
 		printerr(full_name, ": not found.")
 		return false
 		
-	var file : FileAccess = FileAccess.open(full_name, FileAccess.READ)
+	var file: FileAccess = FileAccess.open(full_name, FileAccess.READ)
 	if file == null:
 		printerr(full_name, ": read error.")
 		return false
-	var doc : Document = Document.new(full_name, file.get_as_text())
-	var sha : String = file.get_sha256(full_name)
+	var doc: Document = Document.new(full_name, file.get_as_text())
+	var sha: String = file.get_sha256(full_name)
 	file.close()
 	
 	if !analyzes.has(sha):
 		print(full_name, ": parsing.")
-		var analysis : Analysis = Analysis.new(path, doc)
-		var an_result : AnalyzeResult = analysis.analyze()
+		var analysis: Analysis = Analysis.new(path, doc)
+		var an_result: AnalyzeResult = analysis.analyze()
 		if an_result.state:
 			analyzes[sha] = an_result
-			var parent : int = imports.size()
+			var parent: int = imports.size()
 			imports.append(ImportFile.new(sha, doc.name, parent_index))
 			for im in an_result.imports:
 				if !parse_all(analyzes, imports, path, im.path, parent):
@@ -2154,34 +2496,34 @@ func parse_all(analyzes : Dictionary, imports : Array, path : String, full_name 
 		imports.append(ImportFile.new(sha, doc.name, parent_index))
 	return true
 
-func union_analyses(a1 : AnalyzeResult, a2 : AnalyzeResult, only_classes : bool = true) -> void:
-	var class_offset : int = a1.classes.size()
-	var field_offset = a1.fields.size()
+func union_analyses(a1: AnalyzeResult, a2: AnalyzeResult, only_classes: bool = true) -> void:
+	var class_offset: int = a1.classes.size()
+	var field_offset: int = a1.fields.size()
 	for cl in a2.classes:
-		var cur_class : Analysis.ASTClass = cl.copy()
+		var cur_class: Analysis.ASTClass = cl.copy()
 		if cur_class.parent_index != -1:
 			cur_class.parent_index += class_offset
 		a1.classes.append(cur_class)
 	if only_classes:
 		return
 	for fl in a2.fields:
-		var cur_field : Analysis.ASTField = fl.copy()
+		var cur_field: Analysis.ASTField = fl.copy()
 		cur_field.parent_class_id += class_offset
 		cur_field.type_class_id = -1
 		a1.fields.append(cur_field)
 	for gr in a2.groups:
-		var cur_group : Analysis.ASTFieldGroup = gr.copy()
+		var cur_group: Analysis.ASTFieldGroup = gr.copy()
 		cur_group.parent_class_id += class_offset
-		var indexes : Array = []
+		var indexes: Array = []
 		for i in cur_group.field_indexes:
 			indexes.append(i + field_offset)
 		cur_group.field_indexes = indexes
 		a1.groups.append(cur_group)
 
-func union_imports(analyzes : Dictionary, key : String, result : AnalyzeResult, keys : Array, nesting : int, use_public : bool = true, only_classes : bool = true) -> void:
+func union_imports(analyzes: Dictionary, key: String, result: AnalyzeResult, keys: Array, nesting: int, use_public: bool = true, only_classes: bool = true) -> void:
 	nesting += 1
 	for im in analyzes[key].imports:
-		var find : bool = false
+		var find: bool = false
 		for k in keys:
 			if im.sha256 == k:
 				find = true
@@ -2193,43 +2535,43 @@ func union_imports(analyzes : Dictionary, key : String, result : AnalyzeResult, 
 			union_analyses(result, analyzes[im.sha256], only_classes)
 			union_imports(analyzes, im.sha256, result, keys, nesting, use_public, only_classes)
 
-func semantic_all(analyzes : Dictionary, imports : Array)-> bool:
+func semantic_all(analyzes: Dictionary, imports: Array) -> bool:
 	for k in analyzes.keys():
 		print(analyzes[k].doc.name, ": analysis.")
-		var keys : Array = []
-		var analyze : AnalyzeResult = analyzes[k].soft_copy()
+		var keys: Array = []
+		var analyze: AnalyzeResult = analyzes[k].soft_copy()
 		keys.append(k)
 		analyze.classes = []
 		for cl in analyzes[k].classes:
 			analyze.classes.append(cl.copy())
 		union_imports(analyzes, k, analyze, keys, 0)
-		var semantic : Semantic = Semantic.new(analyze)
+		var semantic: Semantic = Semantic.new(analyze)
 		if !semantic.check():
 			printerr(analyzes[k].doc.name, ": analysis error.")
 			return false
 	return true
 	
-func translate_all(analyzes : Dictionary, file_name : String, core_file_name : String) -> bool:
-	var first_key : String = analyzes.keys()[0]
-	var analyze : AnalyzeResult = analyzes[first_key]
-	var keys : Array = []
+func translate_all(analyzes: Dictionary, file_name: String, core_file_name: String) -> bool:
+	var first_key: String = analyzes.keys()[0]
+	var analyze: AnalyzeResult = analyzes[first_key]
+	var keys: Array = []
 	keys.append(first_key)
 	union_imports(analyzes, first_key, analyze, keys, 0, false, false)
 	print("Performing full semantic analysis.")
-	var semantic : Semantic = Semantic.new(analyze)
+	var semantic: Semantic = Semantic.new(analyze)
 	if !semantic.check():
 		return false
 	print("Performing translation.")
-	var translator : Translator = Translator.new(analyze)
+	var translator: Translator = Translator.new(analyze)
 	if !translator.translate(file_name, core_file_name):
 		return false
-	var first : bool = true
+	var first: bool = true
 	return true
 
-func work(path : String, in_file : String, out_file : String, core_file : String) -> bool:
-	var in_full_name : String = path + in_file
-	var imports : Array = []
-	var analyzes : Dictionary = {}
+func work(path: String, in_file: String, out_file: String, core_file: String) -> bool:
+	var in_full_name: String = path + in_file
+	var imports: Array = []
+	var analyzes: Dictionary = {}
 	
 	print("Compiling source: '", in_full_name, "', output: '", out_file, "'.")
 	print("\n1. Parsing:")

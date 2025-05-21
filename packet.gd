@@ -31,7 +31,7 @@
 
 # DEBUG_TAB redefine this "  " if you need, example: const DEBUG_TAB = "\t"
 
-const PROTO_VERSION = 0
+const PROTO_VERSION = 3
 
 const DEBUG_TAB: String = "  "
 
@@ -771,3 +771,517 @@ class PBPacker:
 			builder.append(field_to_string(field, nesting))
 		
 		return "".join(builder)
+
+
+
+############### USER DATA BEGIN ################
+
+
+class Packet:
+	func _init():
+		var service
+
+		var __time_stamp: PBField = PBField.new("time_stamp", PB_DATA_TYPE.INT64, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.INT64])
+		service = PBServiceField.new()
+		service.field = __time_stamp
+		data[__time_stamp.tag] = service
+
+		var __type: PBField = PBField.new("type", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __type
+		data[__type.tag] = service
+
+		var __error: PBField = PBField.new("error", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __error
+		data[__error.tag] = service
+
+		var __connection: PBField = PBField.new("connection", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __connection
+		service.func_ref = Callable(self, "new_connection")
+		data[__connection.tag] = service
+
+		var __broadcast: PBField = PBField.new("broadcast", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __broadcast
+		service.func_ref = Callable(self, "new_broadcast")
+		data[__broadcast.tag] = service
+
+		var __create_player: PBField = PBField.new("create_player", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __create_player
+		service.func_ref = Callable(self, "new_create_player")
+		data[__create_player.tag] = service
+
+		var __select_player: PBField = PBField.new("select_player", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 7, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __select_player
+		service.func_ref = Callable(self, "new_select_player")
+		data[__select_player.tag] = service
+
+		var __account_players: PBField = PBField.new("account_players", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 8, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __account_players
+		service.func_ref = Callable(self, "new_account_players")
+		data[__account_players.tag] = service
+
+		var __movement_packet: PBField = PBField.new("movement_packet", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 9, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __movement_packet
+		service.func_ref = Callable(self, "new_movement_packet")
+		data[__movement_packet.tag] = service
+
+		var __catch_up_packet: PBField = PBField.new("catch_up_packet", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 10, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __catch_up_packet
+		service.func_ref = Callable(self, "new_catch_up_packet")
+		data[__catch_up_packet.tag] = service
+
+	var data = {}
+
+
+
+
+
+
+
+
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class PlayerSelectPacket:
+	func _init():
+		var service
+
+		var __name: PBField = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __name
+		data[__name.tag] = service
+
+	var data = {}
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class AccountPlayersPacket:
+	func _init():
+		var service
+
+		var __players_default: Array[Player] = []
+		var __players: PBField = PBField.new("players", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 1, true, __players_default)
+		service = PBServiceField.new()
+		service.field = __players
+		service.func_ref = Callable(self, "add_players")
+		data[__players.tag] = service
+
+	var data = {}
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class PingPacket:
+	func _init():
+		var service
+
+		var __base: PBField = PBField.new("base", PB_DATA_TYPE.BOOL, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.BOOL])
+		service = PBServiceField.new()
+		service.field = __base
+		data[__base.tag] = service
+
+	var data = {}
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class MovementPacket:
+	func _init():
+		var service
+
+		var __velocity: PBField = PBField.new("velocity", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __velocity
+		service.func_ref = Callable(self, "new_velocity")
+		data[__velocity.tag] = service
+
+		var __transform: PBField = PBField.new("transform", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __transform
+		service.func_ref = Callable(self, "new_transform")
+		data[__transform.tag] = service
+
+	var data = {}
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class CatchUpPacket:
+	func _init():
+		var service
+
+		var __player_default: Array[Player] = []
+		var __player: PBField = PBField.new("player", PB_DATA_TYPE.MESSAGE, PB_RULE.REPEATED, 1, true, __player_default)
+		service = PBServiceField.new()
+		service.field = __player
+		service.func_ref = Callable(self, "add_player")
+		data[__player.tag] = service
+
+	var data = {}
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class BroadcastPacket:
+	func _init():
+		var service
+
+		var __type: PBField = PBField.new("type", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __type
+		data[__type.tag] = service
+
+		var __sender: PBField = PBField.new("sender", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __sender
+		data[__sender.tag] = service
+
+		var __movement_packet: PBField = PBField.new("movement_packet", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __movement_packet
+		service.func_ref = Callable(self, "new_movement_packet")
+		data[__movement_packet.tag] = service
+
+		var __connection_packet: PBField = PBField.new("connection_packet", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 4, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __connection_packet
+		service.func_ref = Callable(self, "new_connection_packet")
+		data[__connection_packet.tag] = service
+
+		var __player_joined: PBField = PBField.new("player_joined", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 5, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __player_joined
+		service.func_ref = Callable(self, "new_player_joined")
+		data[__player_joined.tag] = service
+
+		var __player_left: PBField = PBField.new("player_left", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 6, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __player_left
+		data[__player_left.tag] = service
+
+	var data = {}
+
+
+
+
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class ConnectionPacket:
+	func _init():
+		var service
+
+		var __version: PBField = PBField.new("version", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __version
+		data[__version.tag] = service
+
+		var __id: PBField = PBField.new("id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __id
+		data[__id.tag] = service
+
+		var __error: PBField = PBField.new("error", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __error
+		data[__error.tag] = service
+
+	var data = {}
+
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class Transform:
+	func _init():
+		var service
+
+		var __position: PBField = PBField.new("position", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __position
+		service.func_ref = Callable(self, "new_position")
+		data[__position.tag] = service
+
+		var __rotation: PBField = PBField.new("rotation", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __rotation
+		service.func_ref = Callable(self, "new_rotation")
+		data[__rotation.tag] = service
+
+	var data = {}
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class Velocity:
+	func _init():
+		var service
+
+		var __linear: PBField = PBField.new("linear", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __linear
+		service.func_ref = Callable(self, "new_linear")
+		data[__linear.tag] = service
+
+		var __angular: PBField = PBField.new("angular", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __angular
+		service.func_ref = Callable(self, "new_angular")
+		data[__angular.tag] = service
+
+	var data = {}
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class Vec3:
+	func _init():
+		var service
+
+		var __x: PBField = PBField.new("x", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		service = PBServiceField.new()
+		service.field = __x
+		data[__x.tag] = service
+
+		var __y: PBField = PBField.new("y", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		service = PBServiceField.new()
+		service.field = __y
+		data[__y.tag] = service
+
+		var __z: PBField = PBField.new("z", PB_DATA_TYPE.FLOAT, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.FLOAT])
+		service = PBServiceField.new()
+		service.field = __z
+		data[__z.tag] = service
+
+	var data = {}
+
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+class Player:
+	func _init():
+		var service
+
+		var __id: PBField = PBField.new("id", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 1, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __id
+		data[__id.tag] = service
+
+		var __name: PBField = PBField.new("name", PB_DATA_TYPE.STRING, PB_RULE.OPTIONAL, 2, true, DEFAULT_VALUES_3[PB_DATA_TYPE.STRING])
+		service = PBServiceField.new()
+		service.field = __name
+		data[__name.tag] = service
+
+		var __transform: PBField = PBField.new("transform", PB_DATA_TYPE.MESSAGE, PB_RULE.OPTIONAL, 3, true, DEFAULT_VALUES_3[PB_DATA_TYPE.MESSAGE])
+		service = PBServiceField.new()
+		service.field = __transform
+		service.func_ref = Callable(self, "new_transform")
+		data[__transform.tag] = service
+
+	var data = {}
+
+
+
+	func _to_string() -> String:
+		return PBPacker.message_to_string(data)
+
+	func to_bytes() -> PackedByteArray:
+		return PBPacker.pack_message(data)
+
+	func from_bytes(bytes: PackedByteArray, offset: int = 0, limit: int = -1) -> int:
+		var cur_limit: int = bytes.size()
+		if limit != -1:
+			cur_limit = limit
+		var result: int = PBPacker.unpack_message(data, bytes, offset, cur_limit)
+		if result == cur_limit:
+			if PBPacker.check_required(data):
+				return PB_ERR.NO_ERRORS if limit == -1 else PB_ERR.REQUIRED_FIELDS
+		elif limit == -1 && result > 0:
+			return PB_ERR.PARSE_INCOMPLETE
+		return result
+	
+################ USER DATA END #################
