@@ -1879,7 +1879,7 @@ class Translator:
 				return "float"
 				
 			Analysis.FIELD_TYPE.STRING:
-				return "StringName"
+				return "String"
 				
 			Analysis.FIELD_TYPE.BYTES:
 				return "PackedByteArray"
@@ -2195,6 +2195,9 @@ class Translator:
 	# 	var text: String = ""
 	# 	var f: Analysis.ASTField = field_table[field_index]
 	# 	var varname: String = "__" + f.name
+
+	# 	nesting += 2
+
 	# 	text += tabulate("var " + varname + ": PBField\n", nesting)
 	# 	if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
 	# 		var the_class_name: String = class_table[f.type_class_id].parent_name + "." + class_table[f.type_class_id].name
@@ -2459,7 +2462,7 @@ class Translator:
 					all_have_prefix = all_have_prefix and value.name.begins_with(expected_prefix) and value.name != expected_prefix
 				
 				for en in cls.values.size():
-					var value_name: StringName = cls.values[en].name
+					var value_name: String = cls.values[en].name
 					if all_have_prefix:
 						value_name = value_name.substr(expected_prefix.length())
 					
