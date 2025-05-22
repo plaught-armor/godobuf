@@ -1923,8 +1923,8 @@ class Translator:
 		if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
 			var the_class_name: String = class_table[f.type_class_id].parent_name + "." + class_table[f.type_class_id].name
 			the_class_name = the_class_name.substr(1, the_class_name.length() - 1)
-			if f.qualificator != Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-				text += generate_has_oneof(field_index, nesting)
+			# if f.qualificator != Analysis.FIELD_QUALIFICATOR.OPTIONAL:
+			# 	text += generate_has_oneof(field_index, nesting)
 			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
 				text += tabulate("func get_" + f.name + "() -> Array[" + the_class_name + "]:\n", nesting)
 			else:
@@ -2049,7 +2049,7 @@ class Translator:
 			if !gd_type.is_empty():
 				return_type = " -> " + gd_type
 				argument_type = ": " + gd_type
-			text += generate_has_oneof(field_index, nesting)
+			#text += generate_has_oneof(field_index, nesting)
 			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
 				var array_type := "[" + gd_type + "]" if gd_type else ""
 				text += tabulate("func get_" + f.name + "() -> Array" + array_type + ":\n", nesting)
