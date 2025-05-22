@@ -1949,7 +1949,7 @@ class Translator:
 				nesting -= 1
 				text += tabulate("func add_" + f.name + "() -> " + the_class_name + ":\n", nesting)
 				nesting += 1
-				text += tabulate("var element = " + the_class_name + ".new()\n", nesting)
+				text += tabulate("var element: %s = %s.new()\n" % [the_class_name, the_class_name], nesting)
 				text += tabulate(varname + ".value.append(element)\n", nesting)
 				text += tabulate("return element\n", nesting)
 			else:
