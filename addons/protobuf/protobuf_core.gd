@@ -585,44 +585,45 @@ class PBPacker:
 
 	static func unpack_field(bytes: PackedByteArray, offset: int, field: PBField, type: int, message_func_ref) -> int:
 		if field.rule == PB_RULE.REPEATED && type != PB_TYPE.LENGTHDEL && field.option_packed:
-			var count = isolate_varint_fast(bytes, offset)
-			if count.size() > 0:
-				offset += count.size()
-				count = unpack_varint(count)
-				if type == PB_TYPE.VARINT:
-					var val
-					var counter = offset + count
-					while offset < counter:
-						val = isolate_varint_fast(bytes, offset)
-						if val.size() > 0:
-							offset += val.size()
-							val = unpack_varint(val)
-							if field.type == PB_DATA_TYPE.SINT32 || field.type == PB_DATA_TYPE.SINT64:
-								val = deconvert_signed(val)
-							elif field.type == PB_DATA_TYPE.BOOL:
-								if val:
-									val = true
-								else:
-									val = false
+			var isolate: PackedByteArray = isolate_varint_fast(bytes, offset)
+			var isolate_size: int = isolate.size()
+			if isolate_size > 0:
+				offset += isolate_size
+				var count: int = unpack_varint(isolate)
+
+				match type:
+					PB_TYPE.VARINT:
+						var val
+						var counter: int = offset + count
+						while offset < counter:
+							val = isolate_varint_fast(bytes, offset)
+							if val.size() > 0:
+								offset += val.size()
+								val = unpack_varint(val)
+								if field.type == PB_DATA_TYPE.SINT32 || field.type == PB_DATA_TYPE.SINT64:
+									val = deconvert_signed(val)
+								elif field.type == PB_DATA_TYPE.BOOL:
+									if val:
+										val = true
+									else:
+										val = false
+								field.value.append(val)
+							else:
+								return PB_ERR.REPEATED_COUNT_MISMATCH
+						return offset
+					PB_TYPE.FIX32, PB_TYPE.FIX64:
+						var type_size: int = 4 if type == PB_TYPE.FIX32 else 8
+						var val
+						var counter: int = offset + count
+						while offset < counter:
+							if (offset + type_size) > bytes.size():
+								return PB_ERR.REPEATED_COUNT_MISMATCH
+							val = unpack_bytes(bytes, offset, type_size, field.type)
+							offset += type_size
 							field.value.append(val)
-						else:
-							return PB_ERR.REPEATED_COUNT_MISMATCH
-					return offset
-				elif type == PB_TYPE.FIX32 || type == PB_TYPE.FIX64:
-					var type_size
-					if type == PB_TYPE.FIX32:
-						type_size = 4
-					else:
-						type_size = 8
-					var val
-					var counter = offset + count
-					while offset < counter:
-						if (offset + type_size) > bytes.size():
-							return PB_ERR.REPEATED_COUNT_MISMATCH
-						val = unpack_bytes(bytes, offset, type_size, field.type)
-						offset += type_size
-						field.value.append(val)
-					return offset
+						return offset
+					_:
+						pass
 			else:
 				return PB_ERR.REPEATED_COUNT_NOT_FOUND
 		else:
@@ -678,14 +679,8 @@ class PBPacker:
 
 				PB_TYPE.FIX32, PB_TYPE.FIX64:
 					var type_size: int = 4 if type == PB_TYPE.FIX32 else 8
-					# if type == PB_TYPE.FIX32:
-					# 	type_size = 4
-					# else:
-					# 	type_size = 8
-					#var val
 					if (offset + type_size) > bytes.size():
 						return PB_ERR.REPEATED_COUNT_MISMATCH
-					#val = unpack_bytes(bytes, offset, type_size, field.type)
 					offset += type_size
 					if field.rule == PB_RULE.REPEATED:
 						field.value.append(unpack_bytes(bytes, offset, type_size, field.type))
