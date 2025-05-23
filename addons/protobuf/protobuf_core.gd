@@ -69,26 +69,26 @@ enum PB_DATA_TYPE {
 	MAP = 17
 }
 
-const DEFAULT_VALUES_2: Dictionary[PB_DATA_TYPE, Variant] = {
-	PB_DATA_TYPE.INT32: null,
-	PB_DATA_TYPE.SINT32: null,
-	PB_DATA_TYPE.UINT32: null,
-	PB_DATA_TYPE.INT64: null,
-	PB_DATA_TYPE.SINT64: null,
-	PB_DATA_TYPE.UINT64: null,
-	PB_DATA_TYPE.BOOL: null,
-	PB_DATA_TYPE.ENUM: null,
-	PB_DATA_TYPE.FIXED32: null,
-	PB_DATA_TYPE.SFIXED32: null,
-	PB_DATA_TYPE.FLOAT: null,
-	PB_DATA_TYPE.FIXED64: null,
-	PB_DATA_TYPE.SFIXED64: null,
-	PB_DATA_TYPE.DOUBLE: null,
-	PB_DATA_TYPE.STRING: null,
-	PB_DATA_TYPE.BYTES: null,
-	PB_DATA_TYPE.MESSAGE: null,
-	PB_DATA_TYPE.MAP: null
-}
+# const DEFAULT_VALUES_2: Dictionary[PB_DATA_TYPE, Variant] = {
+# 	PB_DATA_TYPE.INT32: null,
+# 	PB_DATA_TYPE.SINT32: null,
+# 	PB_DATA_TYPE.UINT32: null,
+# 	PB_DATA_TYPE.INT64: null,
+# 	PB_DATA_TYPE.SINT64: null,
+# 	PB_DATA_TYPE.UINT64: null,
+# 	PB_DATA_TYPE.BOOL: null,
+# 	PB_DATA_TYPE.ENUM: null,
+# 	PB_DATA_TYPE.FIXED32: null,
+# 	PB_DATA_TYPE.SFIXED32: null,
+# 	PB_DATA_TYPE.FLOAT: null,
+# 	PB_DATA_TYPE.FIXED64: null,
+# 	PB_DATA_TYPE.SFIXED64: null,
+# 	PB_DATA_TYPE.DOUBLE: null,
+# 	PB_DATA_TYPE.STRING: null,
+# 	PB_DATA_TYPE.BYTES: null,
+# 	PB_DATA_TYPE.MESSAGE: null,
+# 	PB_DATA_TYPE.MAP: null
+# }
 
 const DEFAULT_VALUES_3: Dictionary[PB_DATA_TYPE, Variant] = {
 	PB_DATA_TYPE.INT32: 0,
@@ -330,7 +330,7 @@ class PBPacker:
 				shift += 7
 		return value
 
-	static func pack_type_tag(type: int, tag: int) -> PackedByteArray:
+	static func pack_type_tag(type: PB_TYPE, tag: int) -> PackedByteArray:
 		return pack_varint((tag << 3) | type)
 
 	# static func isolate_varint(bytes: PackedByteArray, index: int) -> PackedByteArray:
@@ -378,7 +378,7 @@ class PBPacker:
 			result.tag = unpacked >> 3
 		return result
 
-	static func pack_length_delimeted(type: PB_DATA_TYPE, tag: int, bytes: PackedByteArray) -> PackedByteArray:
+	static func pack_length_delimeted(type: PB_TYPE, tag: int, bytes: PackedByteArray) -> PackedByteArray:
 		# var size: int = 0
 		# var result: PackedByteArray = pack_type_tag(type, tag)
 		# size += result.size() + bytes.size()
@@ -432,8 +432,8 @@ class PBPacker:
 				return PB_TYPE.UNDEFINED
 
 	static func pack_field(field: PBField) -> PackedByteArray:
-		var type: int = pb_type_from_data_type(field.type)
-		var type_copy: int = type
+		var type: PB_TYPE = pb_type_from_data_type(field.type)
+		var type_copy: PB_TYPE = type
 		if field.rule == PB_RULE.REPEATED && field.option_packed:
 			type = PB_TYPE.LENGTHDEL
 		var head: PackedByteArray = pack_type_tag(type, field.tag)
@@ -626,80 +626,117 @@ class PBPacker:
 			else:
 				return PB_ERR.REPEATED_COUNT_NOT_FOUND
 		else:
-			if type == PB_TYPE.VARINT:
-				var val = isolate_varint_fast(bytes, offset)
-				if val.size() > 0:
-					offset += val.size()
-					val = unpack_varint(val)
-					if field.type == PB_DATA_TYPE.SINT32 || field.type == PB_DATA_TYPE.SINT64:
-						val = deconvert_signed(val)
-					elif field.type == PB_DATA_TYPE.BOOL:
-						if val:
-							val = true
-						else:
-							val = false
-					if field.rule == PB_RULE.REPEATED:
-						field.value.append(val)
+			match type:
+				PB_TYPE.VARINT:
+					# var val = isolate_varint_fast(bytes, offset)
+					# if val.size() > 0:
+					# 	offset += val.size()
+					# 	val = unpack_varint(val)
+					# 	if field.type == PB_DATA_TYPE.SINT32 || field.type == PB_DATA_TYPE.SINT64:
+					# 		val = deconvert_signed(val)
+					# 	elif field.type == PB_DATA_TYPE.BOOL:
+					# 		if val:
+					# 			val = true
+					# 		else:
+					# 			val = false
+					# 	if field.rule == PB_RULE.REPEATED:
+					# 		field.value.append(val)
+					# 	else:
+					# 		field.value = val
+					# else:
+					# 	return PB_ERR.VARINT_NOT_FOUND
+					# return offset
+					var isolate: PackedByteArray = isolate_varint_fast(bytes, offset)
+					var isolate_size: int = isolate.size()
+					if isolate_size > 0:
+						offset += isolate_size
+
+						var unpacked_iso: int = unpack_varint(isolate)
+
+						match field.type:
+							PB_DATA_TYPE.SINT32, PB_DATA_TYPE.SINT64:
+								if field.rule == PB_RULE.REPEATED:
+									field.value.append(deconvert_signed(unpacked_iso))
+								else:
+									field.value = deconvert_signed(unpacked_iso)
+							PB_DATA_TYPE.BOOL:
+								if unpacked_iso:
+									if field.rule == PB_RULE.REPEATED:
+										field.value.append(true)
+									else:
+										field.value = true
+								else:
+									if field.rule == PB_RULE.REPEATED:
+										field.value.append(false)
+									else:
+										field.value = false
+							_:
+								pass
+						return offset
 					else:
-						field.value = val
-				else:
-					return PB_ERR.VARINT_NOT_FOUND
-				return offset
-			elif type == PB_TYPE.FIX32 || type == PB_TYPE.FIX64:
-				var type_size
-				if type == PB_TYPE.FIX32:
-					type_size = 4
-				else:
-					type_size = 8
-				var val
-				if (offset + type_size) > bytes.size():
-					return PB_ERR.REPEATED_COUNT_MISMATCH
-				val = unpack_bytes(bytes, offset, type_size, field.type)
-				offset += type_size
-				if field.rule == PB_RULE.REPEATED:
-					field.value.append(val)
-				else:
-					field.value = val
-				return offset
-			elif type == PB_TYPE.LENGTHDEL:
-				var inner_size = isolate_varint_fast(bytes, offset)
-				if inner_size.size() > 0:
-					offset += inner_size.size()
-					inner_size = unpack_varint(inner_size)
-					if inner_size >= 0:
-						if inner_size + offset > bytes.size():
+						return PB_ERR.VARINT_NOT_FOUND
+
+				PB_TYPE.FIX32, PB_TYPE.FIX64:
+					var type_size: int = 4 if type == PB_TYPE.FIX32 else 8
+					# if type == PB_TYPE.FIX32:
+					# 	type_size = 4
+					# else:
+					# 	type_size = 8
+					#var val
+					if (offset + type_size) > bytes.size():
+						return PB_ERR.REPEATED_COUNT_MISMATCH
+					#val = unpack_bytes(bytes, offset, type_size, field.type)
+					offset += type_size
+					if field.rule == PB_RULE.REPEATED:
+						field.value.append(unpack_bytes(bytes, offset, type_size, field.type))
+					else:
+						field.value = unpack_bytes(bytes, offset, type_size, field.type)
+					return offset
+				PB_TYPE.LENGTHDEL:
+					var isolate: PackedByteArray = isolate_varint_fast(bytes, offset)
+					var isolate_size: int = isolate.size()
+					if isolate_size > 0:
+						offset += isolate_size
+
+						var isolate_unpacked: int = unpack_varint(isolate)
+						if isolate_unpacked < 0:
+							return PB_ERR.LENGTHDEL_SIZE_NOT_FOUND
+
+
+						var isolate_offset: int = isolate_unpacked + offset
+						if isolate_offset > bytes.size():
 							return PB_ERR.LENGTHDEL_SIZE_MISMATCH
+
 						if message_func_ref != null:
 							var message = message_func_ref.call()
-							if inner_size > 0:
-								var sub_offset = message.from_bytes(bytes, offset, inner_size + offset)
+							if isolate_unpacked > 0:
+								var sub_offset: int = message.from_bytes(bytes, offset, isolate_offset)
 								if sub_offset > 0:
-									if sub_offset - offset >= inner_size:
-										offset = sub_offset
-										return offset
+									if sub_offset - offset >= isolate_unpacked:
+										return sub_offset
 									else:
 										return PB_ERR.LENGTHDEL_SIZE_MISMATCH
 								return sub_offset
 							else:
 								return offset
-						elif field.type == PB_DATA_TYPE.STRING:
-							var str_bytes: PackedByteArray = bytes.slice(offset, inner_size + offset)
+
+						if field.type == PB_DATA_TYPE.STRING:
+							#var str_bytes: PackedByteArray = bytes.slice(offset, isolate_offset)
 							if field.rule == PB_RULE.REPEATED:
-								field.value.append(str_bytes.get_string_from_utf8())
+								field.value.append(bytes.slice(offset, isolate_offset).get_string_from_utf8())
 							else:
-								field.value = str_bytes.get_string_from_utf8()
-							return offset + inner_size
+								field.value = bytes.slice(offset, isolate_offset).get_string_from_utf8()
+							return isolate_offset
+
 						elif field.type == PB_DATA_TYPE.BYTES:
-							var val_bytes: PackedByteArray = bytes.slice(offset, inner_size + offset)
+							var val_bytes: PackedByteArray = bytes.slice(offset, isolate_offset)
 							if field.rule == PB_RULE.REPEATED:
 								field.value.append(val_bytes)
 							else:
 								field.value = val_bytes
-							return offset + inner_size
+							return isolate_offset
 					else:
 						return PB_ERR.LENGTHDEL_SIZE_NOT_FOUND
-				else:
-					return PB_ERR.LENGTHDEL_SIZE_NOT_FOUND
 		return PB_ERR.UNDEFINED_STATE
 
 	static func unpack_message(data: Dictionary[int, PBServiceField], bytes: PackedByteArray, offset: int, limit: int) -> int:
@@ -740,14 +777,8 @@ class PBPacker:
 		return PB_ERR.UNDEFINED_STATE
 
 	static func pack_message(data: Dictionary[int, PBServiceField]) -> PackedByteArray:
-		var DEFAULT_VALUES
-		if PROTO_VERSION == 2:
-			DEFAULT_VALUES = DEFAULT_VALUES_2
-		elif PROTO_VERSION == 3:
-			DEFAULT_VALUES = DEFAULT_VALUES_3
 		var result: PackedByteArray = PackedByteArray()
-
-		data.sort()
+		#data.sort()
 
 		var size: int = 0
 		var packed: PackedByteArray
@@ -755,8 +786,8 @@ class PBPacker:
 			if data[i].field.value != null:
 				if data[i].state == PB_SERVICE_STATE.UNFILLED \
 				&& !data[i].field.is_map_field \
-				&& typeof(data[i].field.value) == typeof(DEFAULT_VALUES[data[i].field.type]) \
-				&& data[i].field.value == DEFAULT_VALUES[data[i].field.type]:
+				&& typeof(data[i].field.value) == typeof(DEFAULT_VALUES_3[data[i].field.type]) \
+				&& data[i].field.value == DEFAULT_VALUES_3[data[i].field.type]:
 					continue
 				elif data[i].field.rule == PB_RULE.REPEATED && data[i].field.value.size() == 0:
 					continue
@@ -857,14 +888,9 @@ class PBPacker:
 		return "".join(builder)
 	
 	static func message_to_string(data: Dictionary[int, PBServiceField], nesting: int = 0) -> String:
-		# Preload default values based on protocol version
-		var DEFAULT_VALUES := DEFAULT_VALUES_3 if PROTO_VERSION == 3 else DEFAULT_VALUES_2
 		var builder: PackedStringArray = PackedStringArray()
-		#var keys: Array = data.keys()
-		
 		# Sort keys once
-		#keys.sort()
-		data.sort()
+		# data.sort()
 		
 		for key: int in data:
 			var field_data: PBServiceField = data[key]
@@ -879,8 +905,8 @@ class PBPacker:
 			# Skip default values for unfilled fields
 			if (field_data.state == PB_SERVICE_STATE.UNFILLED
 				and not field.is_map_field
-				and typeof(field.value) == typeof(DEFAULT_VALUES[field.type])
-				and field.value == DEFAULT_VALUES[field.type]):
+				and typeof(field.value) == typeof(DEFAULT_VALUES_3[field.type])
+				and field.value == DEFAULT_VALUES_3[field.type]):
 				continue
 			
 			# Skip empty repeated fields

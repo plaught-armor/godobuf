@@ -2152,6 +2152,8 @@ class Translator:
 					text += tabulate("\n", nesting)
 					field_text += generate_field(i, nesting - 1)
 					field_text += tabulate("\n", nesting - 1)
+			text += tabulate("if data.size() > 1:\n", nesting)
+			text += tabulate("data.sort()\n\n", nesting + 1)
 			nesting -= 1
 			text += tabulate("var data: Dictionary[int, PBServiceField] \n", nesting)
 			text += tabulate("\n", nesting)
