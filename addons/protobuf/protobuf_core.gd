@@ -593,34 +593,35 @@ class PBPacker:
 
 				match type:
 					PB_TYPE.VARINT:
-						var val
 						var counter: int = offset + count
 						while offset < counter:
-							val = isolate_varint_fast(bytes, offset)
-							if val.size() > 0:
-								offset += val.size()
-								val = unpack_varint(val)
-								if field.type == PB_DATA_TYPE.SINT32 || field.type == PB_DATA_TYPE.SINT64:
-									val = deconvert_signed(val)
-								elif field.type == PB_DATA_TYPE.BOOL:
-									if val:
-										val = true
-									else:
-										val = false
+							isolate = isolate_varint_fast(bytes, offset)
+							isolate_size = isolate.size()
+							if isolate_size > 0:
+								offset += isolate_size
+								var val: int = unpack_varint(isolate)
+
+								match field.type:
+									PB_DATA_TYPE.SINT32, PB_DATA_TYPE.SINT64:
+										field.value.append(deconvert_signed(val))
+									PB_DATA_TYPE.BOOL:
+										field.value.append(true if val else false)
+									_:
+										pass
 								field.value.append(val)
 							else:
 								return PB_ERR.REPEATED_COUNT_MISMATCH
 						return offset
 					PB_TYPE.FIX32, PB_TYPE.FIX64:
 						var type_size: int = 4 if type == PB_TYPE.FIX32 else 8
-						var val
+						#var val
 						var counter: int = offset + count
 						while offset < counter:
 							if (offset + type_size) > bytes.size():
 								return PB_ERR.REPEATED_COUNT_MISMATCH
-							val = unpack_bytes(bytes, offset, type_size, field.type)
+							#val = unpack_bytes(bytes, offset, type_size, field.type)
+							field.value.append(unpack_bytes(bytes, offset, type_size, field.type))
 							offset += type_size
-							field.value.append(val)
 						return offset
 					_:
 						pass
@@ -797,7 +798,7 @@ class PBPacker:
 		return result
 
 	static func check_required(data: Dictionary[int, PBServiceField]) -> bool:
-		for i in data:
+		for i: int in data:
 			if data[i].field.rule == PB_RULE.REQUIRED && data[i].state == PB_SERVICE_STATE.UNFILLED:
 				return false
 		return true
