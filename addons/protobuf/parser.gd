@@ -1080,11 +1080,11 @@ class Analysis:
 			values = []
 		
 		var name: String
-		var type: int
+		var type: CLASS_TYPE
 		var parent_index: int
 		var parent_name: String
 		var option: String
-		var construction_index
+		var construction_index: int
 		var values: Array
 		
 		func copy() -> ASTClass:
@@ -1105,7 +1105,7 @@ class Analysis:
 			return ASTEnumValue.new(name, value)
 	
 	class ASTField:
-		func _init(t, n: String, tn: String, p: int, q: int, o: int, ci: int, mf: bool):
+		func _init(t, n: String, tn: String, p: int, q: FIELD_QUALIFICATOR, o: int, ci: int, mf: bool):
 			tag = t
 			name = n
 			type_name = tn
@@ -1119,11 +1119,11 @@ class Analysis:
 		var name: String
 		var type_name: String
 		var parent_class_id: int
-		var qualificator: int
+		var qualificator: FIELD_QUALIFICATOR
 		var option: int
 		var construction_index: int
 		var is_map_field: bool
-		var field_type: int = FIELD_TYPE.UNDEFINED
+		var field_type: FIELD_TYPE = FIELD_TYPE.UNDEFINED
 		var type_class_id: int = -1
 		
 		func copy() -> ASTField:
@@ -1138,7 +1138,7 @@ class Analysis:
 	}
 	
 	class ASTFieldGroup:
-		func _init(n: String, pi: int, r: int):
+		func _init(n: String, pi: int, r: AST_GROUP_RULE):
 			name = n
 			parent_class_id = pi
 			rule = r
@@ -1146,7 +1146,7 @@ class Analysis:
 			
 		var name: String
 		var parent_class_id: int
-		var rule: int
+		var rule: AST_GROUP_RULE
 		var field_indexes: Array[int] = []
 		var opened: bool
 		
@@ -1187,15 +1187,15 @@ class Analysis:
 	
 	func desc_syntax(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		var result: DescriptionResult = DescriptionResult.new()
-		var s: String = get_text_from_token(indexed_tokens[0].token)
-		if s == "proto2":
-			proto_version = 2
-		elif s == "proto3":
-			proto_version = 3
-		else:
-			result.success = false
-			result.error = indexed_tokens[0].index
-			result.description = "Unspecified version of the protocol. Use \"proto2\" or \"proto3\" syntax string."
+		match get_text_from_token(indexed_tokens[0].token):
+			"proto2":
+				proto_version = 2
+			"proto3":
+				proto_version = 3
+			_:
+				result.success = false
+				result.error = indexed_tokens[0].index
+				result.description = "Unspecified version of the protocol. Use \"proto2\" or \"proto3\" syntax string."
 		return result
 		
 	func desc_import(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
@@ -1229,8 +1229,8 @@ class Analysis:
 		
 	func desc_package(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		printerr("UNRELEASED desc_package: ", indexed_tokens.size(), ", nesting: ", settings.nesting)
-		var result: DescriptionResult = DescriptionResult.new()
-		return result
+		#var result: DescriptionResult = DescriptionResult.new()
+		return DescriptionResult.new()
 		
 	func desc_option(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		printerr("UNRELEASED desc_option: ", indexed_tokens.size(), ", nesting: ", settings.nesting)
@@ -1254,16 +1254,25 @@ class Analysis:
 					result.description = "Using the 'required' or 'optional' qualificator is unacceptable in Protobuf v3."
 					return result
 				offset += 1
-		if proto_version == 2:
+		elif proto_version == 2:
 			option = FIELD_OPTION.NOT_PACKED
 			if !(group_table.size() > 0 && group_table[group_table.size() - 1].opened):
 				if indexed_tokens[offset].token.id == TOKEN_ID.FIELD_QUALIFICATION:
-					if indexed_tokens[offset].token.text == "repeated":
-						qualifcator = FIELD_QUALIFICATOR.REPEATED
-					elif indexed_tokens[offset].token.text == "required":
-						qualifcator = FIELD_QUALIFICATOR.REQUIRED
-					elif indexed_tokens[offset].token.text == "optional":
-						qualifcator = FIELD_QUALIFICATOR.OPTIONAL
+					match indexed_tokens[offset].token.text:
+						"repeated":
+							qualifcator = FIELD_QUALIFICATOR.REPEATED
+						"required":
+							qualifcator = FIELD_QUALIFICATOR.REQUIRED
+						"optional":
+							qualifcator = FIELD_QUALIFICATOR.OPTIONAL
+						_:
+							pass
+					# if indexed_tokens[offset].token.text == "repeated":
+					# 	qualifcator = FIELD_QUALIFICATOR.REPEATED
+					# elif indexed_tokens[offset].token.text == "required":
+					# 	qualifcator = FIELD_QUALIFICATOR.REQUIRED
+					# elif indexed_tokens[offset].token.text == "optional":
+					# 	qualifcator = FIELD_QUALIFICATOR.OPTIONAL
 					offset += 1
 				else:
 					if class_table[settings.parent_index].type == CLASS_TYPE.MESSAGE:
@@ -1271,6 +1280,7 @@ class Analysis:
 						result.error = indexed_tokens[offset].index
 						result.description = "Using the 'required', 'optional' or 'repeated' qualificator necessarily in Protobuf v2."
 						return result
+		
 		var type_name: String = indexed_tokens[offset].token.text; offset += 1
 		var field_name: String = indexed_tokens[offset].token.text; offset += 1
 		var tag: String = indexed_tokens[offset].token.text; offset += 1
@@ -1289,19 +1299,20 @@ class Analysis:
 				return result
 				
 		if group_table.size() > 0:
-			if group_table[group_table.size() - 1].opened:
+			var field_group: ASTFieldGroup = group_table[group_table.size() - 1]
+			if field_group.opened:
 				if indexed_tokens[0].token.id == TOKEN_ID.FIELD_QUALIFICATION:
 					result.success = false
 					result.error = indexed_tokens[0].index
 					result.description = "Using the 'required', 'optional' or 'repeated' qualificator is unacceptable in 'OneOf' field."
 					return result
-				group_table[group_table.size() - 1].field_indexes.append(field_table.size())
+				field_group.field_indexes.append(field_table.size())
 		field_table.append(ASTField.new(tag, field_name, type_name, settings.parent_index, qualifcator, option, settings.construction_index, false))
 		return result
 	
 	func desc_map_field(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		var result: DescriptionResult = DescriptionResult.new()
-		var qualifcator: int = FIELD_QUALIFICATOR.REPEATED
+		var qualifcator: FIELD_QUALIFICATOR = FIELD_QUALIFICATOR.REPEATED
 		var option: int
 		var offset: int = 0
 		
@@ -1363,11 +1374,11 @@ class Analysis:
 					result.description = "For Enums, the default value is the first defined enum value, which must be 0."
 					break
 				first_value = false
-			#if indexed_tokens[offset + 1].token.text[0] == "+" || indexed_tokens[offset + 1].token.text[0] == "-":
-			#	result.success = false
-			#	result.error = indexed_tokens[offset + 1].index
-			#	result.description = "For Enums, signed values are not allowed."
-			#	break
+			if indexed_tokens[offset + 1].token.text[0] == "+" || indexed_tokens[offset + 1].token.text[0] == "-":
+				result.success = false
+				result.error = indexed_tokens[offset + 1].index
+				result.description = "For Enums, signed values are not allowed."
+				break
 			value = ASTEnumValue.new(indexed_tokens[offset].token.text, indexed_tokens[offset + 1].token.text)
 			enum_class.values.append(value)
 			offset += 2
@@ -1376,17 +1387,17 @@ class Analysis:
 		return result
 		
 	func desc_message_head(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
-		var result: DescriptionResult = DescriptionResult.new()
+		#var result: DescriptionResult = DescriptionResult.new()
 		class_table.append(ASTClass.new(indexed_tokens[0].token.text, CLASS_TYPE.MESSAGE, settings.parent_index, settings.parent_name, "", settings.construction_index))
 		settings.parent_index = class_table.size() - 1
 		settings.parent_name = settings.parent_name + "." + indexed_tokens[0].token.text
-		return result
+		return DescriptionResult.new()
 		
 	func desc_message_tail(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		settings.parent_index = class_table[settings.parent_index].parent_index
 		settings.parent_name = class_table[settings.parent_index + 1].parent_name
-		var result: DescriptionResult = DescriptionResult.new()
-		return result
+		#var result: DescriptionResult = DescriptionResult.new()
+		return DescriptionResult.new()
 	
 	func desc_oneof_head(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		var result: DescriptionResult = DescriptionResult.new()
@@ -1401,8 +1412,8 @@ class Analysis:
 		
 	func desc_oneof_tail(indexed_tokens: Array, settings: CompareSettings) -> DescriptionResult:
 		group_table[group_table.size() - 1].opened = false
-		var result: DescriptionResult = DescriptionResult.new()
-		return result
+		#var result: DescriptionResult = DescriptionResult.new()
+		return DescriptionResult.new()
 		
 	func analyze() -> AnalyzeResult:
 		var analyze_result: AnalyzeResult = AnalyzeResult.new()
@@ -1468,7 +1479,7 @@ class Semantic:
 		FIELD_TYPE = 3
 	}
 	
-	var STRING_FIELD_TYPE = {
+	var STRING_FIELD_TYPE: Dictionary[String, Analysis.FIELD_TYPE] = {
 		"int32": Analysis.FIELD_TYPE.INT32,
 		"sint32": Analysis.FIELD_TYPE.SINT32,
 		"uint32": Analysis.FIELD_TYPE.UINT32,
@@ -1595,21 +1606,16 @@ class Semantic:
 				if field_table[i].type_class_id == -1:
 					result.append(CheckResult.new(field_table[i].construction_index, field_table[i].construction_index, i, CHECK_SUBJECT.FIELD_TYPE))
 				else:
-					if class_table[field_table[i].type_class_id].type == Analysis.CLASS_TYPE.ENUM:
-						field_table[i].field_type = Analysis.FIELD_TYPE.ENUM
-					elif class_table[field_table[i].type_class_id].type == Analysis.CLASS_TYPE.MESSAGE:
-						field_table[i].field_type = Analysis.FIELD_TYPE.MESSAGE
-					elif class_table[field_table[i].type_class_id].type == Analysis.CLASS_TYPE.MAP:
-						field_table[i].field_type = Analysis.FIELD_TYPE.MAP
-					else:
-						result.append(CheckResult.new(field_table[i].construction_index, field_table[i].construction_index, i, CHECK_SUBJECT.FIELD_TYPE))
+					match class_table[field_table[i].type_class_id].type:
+						Analysis.CLASS_TYPE.ENUM:
+							field_table[i].field_type = Analysis.FIELD_TYPE.ENUM
+						Analysis.CLASS_TYPE.MESSAGE:
+							field_table[i].field_type = Analysis.FIELD_TYPE.MESSAGE
+						Analysis.CLASS_TYPE.MAP:
+							field_table[i].field_type = Analysis.FIELD_TYPE.MAP
+						_:
+							result.append(CheckResult.new(field_table[i].construction_index, field_table[i].construction_index, i, CHECK_SUBJECT.FIELD_TYPE))
 		return result
-	
-	# func check_constructions() -> Array[CheckResult]:
-	# 	var cl: Array = check_class_names()
-	# 	var fl: Array = check_field_names()
-	# 	var ft: Array = determine_field_types()
-	# 	return cl + fl + ft
 
 	func check_constructions() -> Array[CheckResult]:
 		# Pre-allocate array with approximate capacity
@@ -1791,23 +1797,23 @@ class Translator:
 		return TYPE_MAP.get(field.field_type, "PB_DATA_TYPE.")
 	
 	func generate_field_rule(field: Analysis.ASTField) -> String:
-		const PREFIX: String = "PB_RULE."
+		const PREFIX: String = "PB_RULE.%s"
 		
 		match field.qualificator:
 			Analysis.FIELD_QUALIFICATOR.OPTIONAL:
-				return PREFIX + "OPTIONAL"
+				return PREFIX % "OPTIONAL"
 			Analysis.FIELD_QUALIFICATOR.REQUIRED:
-				return PREFIX + "REQUIRED"
+				return PREFIX % "REQUIRED"
 			Analysis.FIELD_QUALIFICATOR.REPEATED:
-				return PREFIX + "REPEATED"
+				return PREFIX % "REPEATED"
 			Analysis.FIELD_QUALIFICATOR.RESERVED:
-				return PREFIX + "RESERVED"
+				return PREFIX % "RESERVED"
 			_:
 				return PREFIX
 	
 	func generate_gdscript_type(field: Analysis.ASTField) -> String:
 		if field.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			var type_name: String = class_table[field.type_class_id].parent_name + "." + class_table[field.type_class_id].name
+			var type_name: String = "%s.%s" % [class_table[field.type_class_id].parent_name, class_table[field.type_class_id].name]
 			return type_name.substr(1, type_name.length() - 1)
 		return generate_gdscript_simple_type(field)
 
@@ -1842,73 +1848,116 @@ class Translator:
 				return ""
 
 	func generate_field_constructor(field_index: int, nesting: int) -> String:
-		var text: String = ""
+		var builder: PackedStringArray = PackedStringArray()
 		var f: Analysis.ASTField = field_table[field_index]
-		var field_name: String = "__" + f.name
-		var pbfield_text: String
-		var default_var_name := field_name + "_default"
+		var field_name: String = "__%s" % f.name
+		var default_var_name: String = "%s_default" % field_name
+
+		# Handle repeated field default value
 		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-			var type_name := generate_gdscript_type(f)
+			var type_name: String = generate_gdscript_type(f)
 			if type_name:
-				text = tabulate("var %s: Array[%s] = []\n" % [default_var_name, type_name], nesting)
+				builder.append(tabulate("var %s: Array[%s] = []\n" % [default_var_name, type_name], nesting))
 			else:
-				text = tabulate("var %s: Array = []\n" % [default_var_name], nesting)
-		pbfield_text += field_name + " = PBField.new("
-		pbfield_text += "\"" + f.name + "\", "
-		pbfield_text += generate_field_type(f) + ", "
-		pbfield_text += generate_field_rule(f) + ", "
-		pbfield_text += str(f.tag) + ", "
-		if f.option == Analysis.FIELD_OPTION.PACKED:
-			pbfield_text += "true"
-		elif f.option == Analysis.FIELD_OPTION.NOT_PACKED:
-			pbfield_text += "false"
-		if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-			pbfield_text += ", " + default_var_name
-		else:
-			pbfield_text += ", " + default_dict_text() + "[" + generate_field_type(f) + "]"
-		pbfield_text += ")\n"
-		text += tabulate(pbfield_text, nesting)
-		if f.is_map_field:
-			text += tabulate(field_name + ".is_map_field = true\n", nesting)
-		text += tabulate("service = PBServiceField.new()\n", nesting)
-		text += tabulate("service.field = " + field_name + "\n", nesting)
-		if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
-			if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
-				text += tabulate("service.func_ref = Callable(self, \"add_" + f.name + "\")\n", nesting)
-			else:
-				text += tabulate("service.func_ref = Callable(self, \"new_" + f.name + "\")\n", nesting)
-		elif f.field_type == Analysis.FIELD_TYPE.MAP:
-			text += tabulate("service.func_ref = Callable(self, \"add_empty_" + f.name + "\")\n", nesting)
-		text += tabulate("data[" + field_name + ".tag] = service\n", nesting)
+				builder.append(tabulate("var %s: Array = []\n" % [default_var_name], nesting))
 		
-		return text
+		# Build PBField constructor arguments
+		var pbfield_builder: PackedStringArray = [
+			"\"%s\"" % f.name,
+			generate_field_type(f),
+			generate_field_rule(f),
+			str(f.tag),
+			"true" if f.option == Analysis.FIELD_OPTION.PACKED else "false",
+			default_var_name if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else "%s[%s]" % [default_dict_text(), generate_field_type(f)]
+		]
+		#pbfield_builder += "%s = PBField.new(" % field_name
+		# pbfield_builder += "\"" + f.name + "\", "
+		# pbfield_builder += generate_field_type(f) + ", "
+		# pbfield_builder += generate_field_rule(f) + ", "
+		# pbfield_builder += str(f.tag) + ", "
+		# if f.option == Analysis.FIELD_OPTION.PACKED:
+		# 	pbfield_builder += "true"
+		# elif f.option == Analysis.FIELD_OPTION.NOT_PACKED:
+		# 	pbfield_builder += "false"
+		
+		# if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED:
+		# 	pbfield_builder += ", " + default_var_name
+		# else:
+		# 	pbfield_builder += ", " + default_dict_text() + "[" + generate_field_type(f) + "]"
+
+		# pbfield_builder += ")\n"
+
+		builder.append(tabulate("%s = PBField.new(%s)\n" % [field_name, ", ".join(pbfield_builder)], nesting))
+		
+		# Set map field flag if needed
+		if f.is_map_field:
+			builder.append(tabulate("%s.is_map_field = true\n" % field_name, nesting))
+		
+		# Set up service field
+		builder.append(tabulate("service = PBServiceField.new()\n", nesting))
+		builder.append(tabulate("service.field = %s\n" % field_name, nesting))
+		
+		# Set function reference based on field type
+		if f.field_type == Analysis.FIELD_TYPE.MESSAGE:
+			var func_name: String = "add_%s" if f.qualificator == Analysis.FIELD_QUALIFICATOR.REPEATED else "new_%s"
+			builder.append(tabulate("service.func_ref = Callable(self, \"%s\")\n" % [func_name % f.name], nesting))
+		elif f.field_type == Analysis.FIELD_TYPE.MAP:
+			builder.append(tabulate("service.func_ref = Callable(self, \"add_empty_%s\")\n" % f.name, nesting))
+		
+		builder.append(tabulate("data[%s.tag] = service\n" % field_name, nesting))
+		
+		return "".join(builder)
 
 	func generate_group_clear(field_index: int, nesting: int) -> String:
-		for g in group_table:
-			var text: String = ""
-			var find: bool = false
-			if g.parent_class_id == field_table[field_index].parent_class_id:
-				for i in g.field_indexes:
-					if field_index == i:
-						find = true
-						text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.FILLED\n", nesting)
-					else:
-						text += tabulate("__" + field_table[i].name + ".value = " + default_dict_text() + "[" + generate_field_type(field_table[i]) + "]\n", nesting)
-						text += tabulate("data[" + field_table[i].tag + "].state = PB_SERVICE_STATE.UNFILLED\n", nesting)
+		const FILLED: String = "data[%d].state = PB_SERVICE_STATE.FILLED\n"
+		const VALUE: String = "__%s.value = %s[%s]\n"
+		const UNFILLED: String = "data[%d].state = PB_SERVICE_STATE.UNFILLED\n"
+
+
+		var f: Analysis.ASTField = field_table[field_index]
+		var text: PackedStringArray = PackedStringArray()
+		var find: bool = false
+
+		var current_field: Analysis.ASTField
+		for g: Analysis.ASTFieldGroup in group_table:
+			if g.parent_class_id != f.parent_class_id:
+				continue
+
+			for i in g.field_indexes:
+				current_field = field_table[i]
+				if field_index == i:
+					find = true
+					text.append(tabulate(FILLED % current_field.tag, nesting))
+				else:
+					text.append(tabulate(VALUE % [current_field.name, default_dict_text(), generate_field_type(current_field)], nesting))
+					text.append(tabulate(UNFILLED % current_field.tag, nesting))
 			if find:
-				return text
+				return "".join(text)
+			text.clear()
 		return ""
 	
 	func generate_has_oneof(field_index: int, nesting: int) -> String:
-		for g in group_table:
-			var text: String = ""
-			if g.parent_class_id == field_table[field_index].parent_class_id:
-				for i in g.field_indexes:
-					if field_index == i:
-						text += tabulate("func has_" + field_table[i].name + "() -> bool:\n", nesting)
-						nesting += 1
-						text += tabulate("return data[" + field_table[i].tag + "].state == PB_SERVICE_STATE.FILLED\n", nesting)
-						return text
+		const HAS_FUNC: String = "func has_%s() -> bool:\n"
+		const RETURN_STATE: String = "return data[%d].state == PB_SERVICE_STATE.FILLED\n"
+		var field: Analysis.ASTField = field_table[field_index]
+
+		for g: Analysis.ASTFieldGroup in group_table:
+			if g.parent_class_id != field.parent_class_id or field_index not in g.field_indexes:
+				continue
+			
+			var builder: PackedStringArray = PackedStringArray()
+			builder.append(tabulate(HAS_FUNC % field.name, nesting))
+			builder.append(tabulate(RETURN_STATE % field.tag, nesting + 1))
+			return "".join(builder)
+
+			# var text: String = ""
+			# if g.parent_class_id == field.parent_class_id:
+			# 	for i in g.field_indexes:
+			# 		if field_index == i:
+			# 			text += tabulate(HAS_FUNC % field.name, nesting)
+			# 			nesting += 1
+			# 			text += tabulate(RETURN_STATE % field.tag, nesting)
+			# 			return text
 		return ""
 
 	
